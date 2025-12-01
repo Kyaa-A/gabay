@@ -8,46 +8,35 @@ const ScrollToBottomButton = ({ isVisible, onClick }) => {
       className="no-drag"
       style={{
         position: "absolute",
-        right: "32px",
-        bottom: "160px",
+        right: "24px",
+        bottom: "100px",
         zIndex: 10,
-        pointerEvents: "auto",
       }}
     >
       <button
-        className="no-drag"
         onClick={onClick}
         style={{
-          width: "48px",
-          height: "48px",
-          borderRadius: "50%",
-          backgroundColor: "#3b82f6",
-          border: "2px solid white",
-          color: "white",
+          width: "36px",
+          height: "36px",
+          borderRadius: "10px",
+          backgroundColor: "#1f2937",
+          border: "1px solid #374151",
+          color: "#9ca3af",
+          cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          cursor: "pointer",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-          transition: "all 0.2s ease",
-          fontSize: "18px",
-          fontWeight: "bold",
-          pointerEvents: "auto",
         }}
-        onMouseEnter={(e) => {
-          e.target.style.backgroundColor = "#2563eb";
-          e.target.style.transform = "scale(1.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.backgroundColor = "#3b82f6";
-          e.target.style.transform = "scale(1)";
-        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#374151"; e.currentTarget.style.color = "#f9fafb"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#9ca3af"; }}
         title="Scroll to bottom"
       >
-        ↓
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
     </div>
   );
 };
 
-export default ScrollToBottomButton; 
+export default ScrollToBottomButton;

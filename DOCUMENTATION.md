@@ -1,4 +1,4 @@
-# 🤖 Whispr - Desktop AI Chatbot Documentation
+# 🤖 Gabay - Desktop AI Chatbot Documentation
 
 ## 📋 Table of Contents
 1. [Project Overview](#project-overview)
@@ -14,7 +14,7 @@
 
 ## 🌟 Project Overview
 
-**Whispr** is a modern desktop AI chatbot built with:
+**Gabay** is a modern desktop AI chatbot built with:
 - **Frontend**: React.js with Tailwind CSS
 - **Desktop Framework**: Electron
 - **AI Integration**: Google Gemini AI

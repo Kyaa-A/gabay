@@ -6,11 +6,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // AI communication methods
   sendMessage: (message) => ipcRenderer.invoke("ai-message", message),
 
+  // AI communication with file attachments (multimodal)
+  sendMessageWithAttachments: (message, attachments) =>
+    ipcRenderer.invoke("ai-message-multimodal", { message, attachments }),
+
   // Window control methods
   closeWindow: () => ipcRenderer.send("close-window"),
   minimizeWindow: () => ipcRenderer.send("minimize-window"),
 
-  // Clipboard methods
-  writeText: (text) => clipboard.writeText(text),
-  readText: () => clipboard.readText(),
+  // Clipboard methods with error handling for WSL compatibility
+  writeText: (text) => {
+    try {
+      clipboard.writeText(text);
+      // Verify the write worked by reading back
+      const written = clipboard.readText();
+      return written === text;
+    } catch (err) {
+      console.error("Clipboard write failed:", err);
+      return false;
+    }
+  },
+  readText: () => {
+    try {
+      return clipboard.readText();
+    } catch (err) {
+      console.error("Clipboard read failed:", err);
+      return "";
+    }
+  },
 });

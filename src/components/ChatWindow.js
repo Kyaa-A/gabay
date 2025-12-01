@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "./Chat/Header";
 import MessageList from "./Chat/MessageList";
 import InputArea from "./Chat/InputArea";
@@ -13,6 +13,7 @@ const ChatWindow = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [modalContent, setModalContent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [attachments, setAttachments] = useState([]);
 
   const {
     autoScroll,
@@ -23,6 +24,17 @@ const ChatWindow = () => {
     handleScroll,
   } = useScrollManagement(messages);
 
+  // Keyboard shortcut: Escape to minimize
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isModalOpen) {
+        window.electronAPI?.minimizeWindow();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen]);
+
   // Handle input change
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
@@ -30,23 +42,53 @@ const ChatWindow = () => {
 
   // Handle sending messages
   const handleSendMessage = async () => {
-    if (inputValue.trim() === "") return;
+    const hasText = inputValue.trim() !== "";
+    const hasAttachments = attachments.length > 0;
+
+    // Need either text or attachments to send
+    if (!hasText && !hasAttachments) return;
 
     const userMessage = inputValue.trim();
+
+    // Create user message with attachments
     const newMessage = {
       id: Date.now(),
-      text: userMessage,
+      text: userMessage || (hasAttachments ? "Sent file(s) for analysis" : ""),
       sender: "user",
       timestamp: new Date(),
+      attachments: attachments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        preview: a.preview,
+      })),
     };
 
     setMessages((prev) => [...prev, newMessage]);
     setInputValue("");
+
+    // Store attachments for API call before clearing
+    const attachmentsToSend = [...attachments];
+    setAttachments([]);
     setIsTyping(true);
 
     try {
-      // Get AI response from Gemini via IPC
-      const aiResponse = await window.electronAPI.sendMessage(userMessage);
+      let aiResponse;
+
+      // Use multimodal API if there are attachments
+      if (attachmentsToSend.length > 0) {
+        aiResponse = await window.electronAPI.sendMessageWithAttachments(
+          userMessage,
+          attachmentsToSend.map((a) => ({
+            name: a.name,
+            type: a.type,
+            data: a.data,
+          }))
+        );
+      } else {
+        // Regular text-only message
+        aiResponse = await window.electronAPI.sendMessage(userMessage);
+      }
 
       const botResponse = {
         id: Date.now() + 1,
@@ -92,6 +134,12 @@ const ChatWindow = () => {
     setModalContent(null);
   };
 
+  // Handle clearing chat history
+  const handleClearChat = () => {
+    setMessages(INITIAL_MESSAGES);
+    setAutoScroll(true);
+  };
+
   // Handle scroll to bottom button click
   const handleScrollToBottom = () => {
     console.log("Scroll to bottom button clicked");
@@ -112,10 +160,15 @@ const ChatWindow = () => {
         flexDirection: "column",
         backgroundColor: "#0f172a",
         color: "white",
+        borderRadius: "20px",
+        overflow: "hidden",
+        boxSizing: "border-box",
+        clipPath: "inset(0 round 20px)",
+        boxShadow: "0 0 0 1px #374151",
       }}
       className="animate-slide-up"
     >
-      <Header />
+      <Header onClearChat={handleClearChat} />
       
       <MessageList
         messages={messages}
@@ -137,6 +190,8 @@ const ChatWindow = () => {
         onKeyPress={handleKeyPress}
         onSend={handleSendMessage}
         isDisabled={inputValue.trim() === ""}
+        attachments={attachments}
+        onAttachmentsChange={setAttachments}
       />
 
       <Modal

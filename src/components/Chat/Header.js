@@ -1,71 +1,119 @@
 import React from "react";
-import WhisprIcon from "../../Image/Whispr-no-bg.png";
-import { UI_CONFIG } from "../../constants/initialMessages";
+import GabayIcon from "../../Image/Whispr-no-bg.png";
 
-const Header = () => {
+const Header = ({ onClearChat }) => {
+  // Prevent double-click from maximizing
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <div
+      onDoubleClick={handleDoubleClick}
       style={{
-        height: UI_CONFIG.HEADER_HEIGHT,
-        padding: "16px",
-        backgroundColor: "#1e293b",
-        borderBottom: "1px solid #334155",
+        padding: "12px 16px",
+        backgroundColor: "#111827",
+        borderBottom: "1px solid #1f2937",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        flexShrink: 0,
+        WebkitAppRegion: "drag",
+        cursor: "move",
       }}
-      className="no-drag"
     >
-      <div className="flex items-center space-x-3">
-        <div className="flex justify-center items-center w-10 h-10 rounded-full shadow-black">
-          <img src={WhisprIcon} alt="Whispr Icon" className="w-max h-max" />
+      {/* Left: Logo and Title */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div
+          style={{
+            width: "36px",
+            height: "36px",
+            borderRadius: "10px",
+            backgroundColor: "#1f2937",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img src={GabayIcon} alt="Gabay" style={{ width: "26px", height: "26px" }} />
         </div>
         <div>
-          <h1 className="text-lg font-semibold">Whispr</h1>
-          <p className="text-xs text-chat-secondary">Personal AI Chatbot</p>
+          <h1 style={{ fontSize: "16px", fontWeight: 600, margin: 0, color: "#f9fafb" }}>
+            Gabay
+          </h1>
+          <span style={{ fontSize: "11px", color: "#6b7280" }}>AI Assistant</span>
         </div>
       </div>
-      <div className="flex items-center space-x-2">
-        <div className="mr-2 text-xs text-chat-secondary">
-          Press Ctrl+L to toggle
-        </div>
+
+      {/* Right: Actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", WebkitAppRegion: "no-drag" }}>
         <button
-          onClick={() => window.electronAPI?.minimizeWindow()}
-          className="flex justify-center items-center w-6 h-6 bg-yellow-500 rounded-full transition-colors duration-200 hover:bg-yellow-600"
-          title="Minimize"
+          onClick={onClearChat}
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "8px",
+            backgroundColor: "transparent",
+            border: "1px solid #374151",
+            color: "#6b7280",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          title="Clear chat"
         >
-          <svg
-            className="w-3 h-3 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 12H4"
-            />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
           </svg>
         </button>
+
+        <button
+          onClick={() => window.electronAPI?.minimizeWindow()}
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "8px",
+            backgroundColor: "#eab308",
+            border: "none",
+            color: "white",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#ca8a04")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#eab308")}
+          title="Minimize"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+
         <button
           onClick={() => window.electronAPI?.closeWindow()}
-          className="flex justify-center items-center w-6 h-6 bg-red-500 rounded-full transition-colors duration-200 hover:bg-red-600"
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "8px",
+            backgroundColor: "#ef4444",
+            border: "none",
+            color: "white",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
           title="Close"
         >
-          <svg
-            className="w-3 h-3 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -73,4 +121,4 @@ const Header = () => {
   );
 };
 
-export default Header; 
+export default Header;

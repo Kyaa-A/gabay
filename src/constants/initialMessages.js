@@ -1,7 +1,7 @@
 export const INITIAL_MESSAGES = [
   {
     id: 1,
-    text: `Hello! I'm **Whispr**, your personal AI chatbot. How can I assist you today?`,
+    text: `Hi! How can I help you today?`,
     sender: "bot",
     timestamp: new Date(),
   },

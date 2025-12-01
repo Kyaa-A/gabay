@@ -1,76 +1,72 @@
 import React from "react";
 import Message from "./Message";
+import GabayIcon from "../../Image/Whispr-no-bg.png";
 
-const MessageList = ({ 
-  messages, 
-  isTyping, 
-  onOpenModal, 
-  messagesContainerRef, 
-  messagesEndRef, 
-  onScroll 
-}) => {
-  return (
+const TypingIndicator = () => (
+  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "16px" }}>
     <div
-      ref={messagesContainerRef}
-      onScroll={onScroll}
-      className="chat-scrollbar no-drag"
       style={{
-        height: "calc(100vh - 200px)", // 80px header + 120px input area
-        overflowY: "scroll",
-        overflowX: "hidden",
-        padding: "24px",
-        backgroundColor: "#0f172a",
-        scrollBehavior: "smooth",
-        cursor: "default",
-        userSelect: "text",
-        WebkitUserSelect: "text",
-        MozUserSelect: "text",
-        msUserSelect: "text",
+        width: "32px",
+        height: "32px",
+        borderRadius: "8px",
+        backgroundColor: "#1f2937",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      {messages.map((message) => (
-        <Message 
-          key={message.id} 
-          message={message} 
-          onOpenModal={onOpenModal} 
+      <img src={GabayIcon} alt="" style={{ width: "22px", height: "22px" }} />
+    </div>
+    <div
+      style={{
+        padding: "14px 18px",
+        backgroundColor: "#1f2937",
+        borderRadius: "4px 16px 16px 16px",
+        display: "flex",
+        gap: "4px",
+      }}
+    >
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "50%",
+            backgroundColor: "#6b7280",
+            animation: `pulse 1.4s ease-in-out ${i * 0.15}s infinite`,
+          }}
         />
       ))}
-
-      {isTyping && (
-        <div
-          className="no-drag"
-          style={{
-            display: "flex",
-            justifyContent: "flex-start",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            className="no-drag"
-            style={{
-              padding: "16px 20px",
-              backgroundColor: "#1e293b",
-              borderRadius: "12px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 rounded-full animate-bounce bg-chat-secondary"></div>
-              <div
-                className="w-2 h-2 rounded-full animate-bounce bg-chat-secondary"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 rounded-full animate-bounce bg-chat-secondary"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      )}
-      <div ref={messagesEndRef} />
+      <style>{`
+        @keyframes pulse {
+          0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
+          30% { opacity: 1; transform: scale(1.2); }
+        }
+      `}</style>
     </div>
-  );
-};
+  </div>
+);
 
-export default MessageList; 
+const MessageList = ({ messages, isTyping, onOpenModal, messagesContainerRef, messagesEndRef, onScroll }) => (
+  <div
+    ref={messagesContainerRef}
+    onScroll={onScroll}
+    className="chat-scrollbar no-drag"
+    style={{
+      flex: 1,
+      overflowY: "auto",
+      overflowX: "hidden",
+      padding: "20px",
+      backgroundColor: "#0f172a",
+    }}
+  >
+    {messages.map((msg) => (
+      <Message key={msg.id} message={msg} onOpenModal={onOpenModal} />
+    ))}
+    {isTyping && <TypingIndicator />}
+    <div ref={messagesEndRef} />
+  </div>
+);
+
+export default MessageList;

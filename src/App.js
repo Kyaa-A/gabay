@@ -11,20 +11,20 @@ const Landing = () => (
       <div className="flex items-center justify-center float-slow">
         <img
           src={require('./Image/Whispr-no-bg.png')}
-          alt="Whispr"
+          alt="Gabay"
           style={{ width: '75%', maxWidth: 520, minWidth: 260 }}
         />
       </div>
 
       {/* Right: Title and actions */}
       <div className="text-left justified-landing">
-        <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">Whispr</h1>
+        <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">Gabay</h1>
         <p className="opacity-90 mb-6 text-lg md:text-xl leading-relaxed max-w-xl">
           Your personal AI chatbot for Windows. Get instant answers, boost productivity,
           and ship code faster — all from a beautiful always‑on desktop widget.
         </p>
         <ul className="space-y-2 opacity-90 mb-8 text-base">
-          <li className="flex items-start gap-2"><span className="text-green-400">✓</span><span>One‑tap global hotkey to summon Whispr anywhere</span></li>
+          <li className="flex items-start gap-2"><span className="text-green-400">✓</span><span>One‑tap global hotkey to summon Gabay anywhere</span></li>
           <li className="flex items-start gap-2"><span className="text-green-400">✓</span><span>Under 50 MB portable build — no install required</span></li>
           <li className="flex items-start gap-2"><span className="text-green-400">✓</span><span>Smart formatting, code blocks, and copy‑to‑clipboard</span></li>
         </ul>
@@ -46,9 +46,11 @@ const Landing = () => (
       </div>
     </div>
     <div className="landing-footer">
-      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-        <span>© {new Date().getFullYear()} Whispr. MIT License.</span>
-        <span>Crafted by Asnari</span>
+      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-3">
+        <span className="opacity-70">Built with</span>
+        <span className="text-red-400">♥</span>
+        <span className="opacity-70">by</span>
+        <a href="https://www.asnari.tech/" target="_blank" rel="noopener noreferrer" className="text-chat-primary hover:underline font-medium">Asnari</a>
       </div>
     </div>
   </div>
