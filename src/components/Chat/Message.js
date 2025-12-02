@@ -44,22 +44,18 @@ const copyToClipboard = async (text) => {
   return false;
 };
 
-const REACTIONS = ["👍", "👎", "❤️", "😂", "🤔", "🎉"];
-
 const Message = ({
   message,
   onOpenModal,
   onEdit,
   onDelete,
   onRegenerate,
-  onReaction,
   isRegenerating
 }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.text);
   const [showActions, setShowActions] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
 
   const isBot = message.sender === "bot";
   const hasAttachments = message.attachments?.length > 0;
@@ -93,11 +89,6 @@ const Message = ({
     }
   };
 
-  const handleReaction = (emoji) => {
-    onReaction?.(message.id, emoji);
-    setShowReactions(false);
-  };
-
   return (
     <div
       className="no-drag"
@@ -110,10 +101,7 @@ const Message = ({
         position: "relative",
       }}
       onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => {
-        setShowActions(false);
-        setShowReactions(false);
-      }}
+      onMouseLeave={() => setShowActions(false)}
     >
       {/* Bot Avatar */}
       {isBot && (
@@ -243,32 +231,6 @@ const Message = ({
           )
         )}
 
-        {/* Reactions display */}
-        {message.reactions && message.reactions.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "4px",
-              marginTop: "8px",
-            }}
-          >
-            {message.reactions.map((reaction, idx) => (
-              <span
-                key={idx}
-                style={{
-                  fontSize: "14px",
-                  backgroundColor: "rgba(255,255,255,0.1)",
-                  padding: "2px 6px",
-                  borderRadius: "10px",
-                }}
-              >
-                {reaction}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Footer - only show when not editing */}
         {!isEditing && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", gap: "10px" }}>
@@ -336,25 +298,6 @@ const Message = ({
               zIndex: 10,
             }}
           >
-            {/* Reaction button */}
-            <button
-              onClick={() => setShowReactions(!showReactions)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#6b7280",
-                cursor: "pointer",
-                padding: "4px 6px",
-                borderRadius: "4px",
-                fontSize: "14px",
-              }}
-              title="Add reaction"
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#374151")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-            >
-              😀
-            </button>
-
             {/* Edit button - only for user messages */}
             {!isBot && (
               <button
@@ -422,51 +365,6 @@ const Message = ({
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
             </button>
-          </div>
-        )}
-
-        {/* Reactions picker */}
-        {showReactions && (
-          <div
-            style={{
-              position: "absolute",
-              top: "-72px",
-              right: isBot ? "auto" : "0",
-              left: isBot ? "0" : "auto",
-              display: "flex",
-              gap: "4px",
-              backgroundColor: "#1f2937",
-              padding: "8px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-              zIndex: 11,
-            }}
-          >
-            {REACTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => handleReaction(emoji)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  fontSize: "18px",
-                  cursor: "pointer",
-                  padding: "4px 6px",
-                  borderRadius: "6px",
-                  transition: "transform 0.1s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#374151";
-                  e.currentTarget.style.transform = "scale(1.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
-              >
-                {emoji}
-              </button>
-            ))}
           </div>
         )}
       </div>

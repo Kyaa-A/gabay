@@ -436,19 +436,6 @@ const ChatWindow = () => {
     }
   }, [messages]);
 
-  const handleReaction = useCallback((messageId, emoji) => {
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId) {
-        const reactions = msg.reactions || [];
-        if (reactions.includes(emoji)) {
-          return { ...msg, reactions: reactions.filter(r => r !== emoji) };
-        }
-        return { ...msg, reactions: [...reactions, emoji] };
-      }
-      return msg;
-    }));
-  }, []);
-
   const handleNewConversation = () => {
     const newConv = createConversation("New Chat");
     setConversations(prev => [newConv, ...prev]);
@@ -558,7 +545,6 @@ const ChatWindow = () => {
         onEditMessage={handleEditMessage}
         onDeleteMessage={handleDeleteMessage}
         onRegenerateMessage={handleRegenerateMessage}
-        onReaction={handleReaction}
         regeneratingId={regeneratingId}
       />
 

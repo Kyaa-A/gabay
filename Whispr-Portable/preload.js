@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer, clipboard, shell } = require("electron");
+const { contextBridge, ipcRenderer, clipboard } = require("electron");
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getApiKey: () => ipcRenderer.invoke("get-api-key"),
   setApiKey: (key) => ipcRenderer.invoke("set-api-key", key),
 
-  // Open external links
-  openExternal: (url) => shell.openExternal(url),
+  // Open external links in default browser
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
 
   // Clipboard methods with error handling for WSL compatibility
   writeText: (text) => {

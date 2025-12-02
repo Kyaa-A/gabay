@@ -6,6 +6,7 @@ const {
   Menu,
   screen,
   ipcMain,
+  shell,
 } = require("electron");
 
 const path = require("path");
@@ -156,24 +157,40 @@ function createWindow() {
 
   // Load the app with graceful fallback
   const devUrl = "http://localhost:3000";
-  // In production, the build folder is at the root of the app
+  // In production, use app.getAppPath() which points to resources/app in packaged build
   const prodPath = app.isPackaged
-    ? path.join(process.resourcesPath, "app", "build", "index.html")
+    ? path.join(app.getAppPath(), "build", "index.html")
     : path.join(__dirname, "../build/index.html");
   const fileUrl = `file://${prodPath}`;
   const targetUrl = isDev ? devUrl : fileUrl;
 
   console.log("Loading app from:", targetUrl);
   console.log("Is packaged:", app.isPackaged);
+  console.log("App path:", app.getAppPath());
   console.log("Prod path:", prodPath);
+  console.log("File exists:", fs.existsSync(prodPath));
 
   mainWindow.loadURL(targetUrl);
 
+  // Show window when content is ready
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Content loaded successfully");
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
   // If dev server is not running, fall back to local build automatically
-  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDesc) => {
-    console.log("Primary load failed:", errorCode, errorDesc, "— falling back to local build");
-    if (targetUrl !== fileUrl) {
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDesc, validatedUrl) => {
+    console.log("Primary load failed:", errorCode, errorDesc, "URL:", validatedUrl);
+    if (targetUrl !== fileUrl && !validatedUrl.startsWith("file://")) {
+      console.log("Falling back to local build:", fileUrl);
       mainWindow.loadURL(fileUrl);
+    } else {
+      // If even local file fails, show an error page
+      console.error("Failed to load app - file not found:", prodPath);
+      mainWindow.loadURL(`data:text/html,<html><body style="background:#1f2937;color:white;font-family:sans-serif;padding:20px;"><h1>Error Loading App</h1><p>Could not find: ${prodPath}</p><p>Please ensure the app was built correctly.</p></body></html>`);
     }
   });
 
@@ -721,6 +738,17 @@ Analyze the provided content and respond thoughtfully:`;
       return false;
     } catch (error) {
       console.error("Failed to save API key:", error);
+      return false;
+    }
+  });
+
+  // Open external URLs in default browser
+  ipcMain.handle("open-external", async (event, url) => {
+    try {
+      await shell.openExternal(url);
+      return true;
+    } catch (error) {
+      console.error("Failed to open external URL:", error);
       return false;
     }
   });

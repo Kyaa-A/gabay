@@ -58,7 +58,6 @@ const MessageList = ({
   onEditMessage,
   onDeleteMessage,
   onRegenerateMessage,
-  onReaction,
   regeneratingId,
 }) => (
   <div
@@ -81,7 +80,6 @@ const MessageList = ({
         onEdit={onEditMessage}
         onDelete={onDeleteMessage}
         onRegenerate={onRegenerateMessage}
-        onReaction={onReaction}
         isRegenerating={regeneratingId === msg.id}
       />
     ))}
