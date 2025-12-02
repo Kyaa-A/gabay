@@ -12,14 +12,23 @@ const {
 const path = require("path");
 const fs = require("fs");
 
-// User data path for storing settings
-const userDataPath = app.getPath("userData");
-const settingsPath = path.join(userDataPath, "settings.json");
+// User data path for storing settings (initialized after app ready)
+let userDataPath = null;
+let settingsPath = null;
+
+// Initialize settings paths (call after app is ready)
+function initSettingsPaths() {
+  if (!userDataPath) {
+    userDataPath = app.getPath("userData");
+    settingsPath = path.join(userDataPath, "settings.json");
+  }
+}
 
 // Load/save settings
 function loadSettings() {
   try {
-    if (fs.existsSync(settingsPath)) {
+    initSettingsPaths();
+    if (settingsPath && fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, "utf8");
       return JSON.parse(data);
     }
@@ -31,6 +40,8 @@ function loadSettings() {
 
 function saveSettings(settings) {
   try {
+    initSettingsPaths();
+    if (!settingsPath) return false;
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
     return true;
   } catch (e) {
@@ -61,17 +72,8 @@ for (const envPath of possibleEnvPaths) {
   }
 }
 
-// Check for API key in settings if not in env
-const settings = loadSettings();
-if (!process.env.GOOGLE_API_KEY && settings.apiKey) {
-  process.env.GOOGLE_API_KEY = settings.apiKey;
-  console.log("API key loaded from settings");
-  envLoaded = true;
-}
-
-if (!envLoaded) {
-  console.log("No API key found - user will need to set one in Settings");
-}
+// API key from settings will be loaded after app is ready
+// (see loadApiKeyFromSettings function)
 
 const isDev = process.env.ELECTRON_IS_DEV === "true" || !app.isPackaged;
 
@@ -728,8 +730,26 @@ Analyze the provided content and respond thoughtfully:`;
   });
 }
 
+// Load API key from settings (must be called after app ready)
+function loadApiKeyFromSettings() {
+  if (!process.env.GOOGLE_API_KEY) {
+    const settings = loadSettings();
+    if (settings.apiKey) {
+      process.env.GOOGLE_API_KEY = settings.apiKey;
+      console.log("API key loaded from settings");
+    } else {
+      console.log("No API key found - user will need to set one in Settings");
+    }
+  }
+}
+
 // App event handlers
 app.whenReady().then(() => {
+  // Initialize settings paths first
+  initSettingsPaths();
+  // Load API key from settings
+  loadApiKeyFromSettings();
+
   createWindow();
   createTray();
   registerGlobalShortcuts();
