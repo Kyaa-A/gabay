@@ -8,9 +8,29 @@ const {
   ipcMain,
 } = require("electron");
 
-// Now load environment variables with better path handling
 const path = require("path");
 const fs = require("fs");
+
+// Try multiple paths for .env file
+const possibleEnvPaths = [
+  path.join(__dirname, '../.env'),                    // Development
+  path.join(__dirname, '.env'),                       // Same directory as main.js
+  path.join(process.cwd(), '.env'),                   // Project root
+];
+
+let envLoaded = false;
+for (const envPath of possibleEnvPaths) {
+  try {
+    require('dotenv').config({ path: envPath });
+    if (process.env.GOOGLE_API_KEY) {
+      console.log(`Environment loaded from: ${envPath}`);
+      envLoaded = true;
+      break;
+    }
+  } catch (e) {
+    // Continue to next path
+  }
+}
 
 // User data path for storing settings (initialized after app ready)
 let userDataPath = null;
@@ -50,32 +70,8 @@ function saveSettings(settings) {
   }
 }
 
-// Try multiple paths for .env file
-const possibleEnvPaths = [
-  path.join(__dirname, '../.env'),                    // Development
-  path.join(__dirname, '.env'),                       // Same directory as main.js
-  path.join(process.cwd(), '.env'),                   // Project root
-  path.join(process.resourcesPath || __dirname, '.env') // Production resources
-];
-
-let envLoaded = false;
-for (const envPath of possibleEnvPaths) {
-  try {
-    require('dotenv').config({ path: envPath });
-    if (process.env.GOOGLE_API_KEY) {
-      console.log(`Environment loaded from: ${envPath}`);
-      envLoaded = true;
-      break;
-    }
-  } catch (e) {
-    // Continue to next path
-  }
-}
-
-// API key from settings will be loaded after app is ready
-// (see loadApiKeyFromSettings function)
-
-const isDev = process.env.ELECTRON_IS_DEV === "true" || !app.isPackaged;
+// isDev will be set after app is ready
+let isDev = process.env.ELECTRON_IS_DEV === "true";
 
 // Disable GPU acceleration for WSL compatibility
 app.disableHardwareAcceleration();
@@ -745,6 +741,9 @@ function loadApiKeyFromSettings() {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Set isDev now that app is ready
+  isDev = process.env.ELECTRON_IS_DEV === "true" || !app.isPackaged;
+
   // Initialize settings paths first
   initSettingsPaths();
   // Load API key from settings
