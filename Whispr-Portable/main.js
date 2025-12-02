@@ -10,6 +10,34 @@ const {
 
 // Now load environment variables with better path handling
 const path = require("path");
+const fs = require("fs");
+
+// User data path for storing settings
+const userDataPath = app.getPath("userData");
+const settingsPath = path.join(userDataPath, "settings.json");
+
+// Load/save settings
+function loadSettings() {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Failed to load settings:", e);
+  }
+  return {};
+}
+
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    return true;
+  } catch (e) {
+    console.error("Failed to save settings:", e);
+    return false;
+  }
+}
 
 // Try multiple paths for .env file
 const possibleEnvPaths = [
@@ -33,8 +61,16 @@ for (const envPath of possibleEnvPaths) {
   }
 }
 
+// Check for API key in settings if not in env
+const settings = loadSettings();
+if (!process.env.GOOGLE_API_KEY && settings.apiKey) {
+  process.env.GOOGLE_API_KEY = settings.apiKey;
+  console.log("API key loaded from settings");
+  envLoaded = true;
+}
+
 if (!envLoaded) {
-  console.log("No .env file found in any of the expected locations");
+  console.log("No API key found - user will need to set one in Settings");
 }
 
 const isDev = process.env.ELECTRON_IS_DEV === "true" || !app.isPackaged;
@@ -658,6 +694,37 @@ Analyze the provided content and respond thoughtfully:`;
     console.log("Clearing AI conversation history");
     conversationHistory = [];
     return true;
+  });
+
+  // Handle API key management
+  ipcMain.handle("get-api-key", () => {
+    const settings = loadSettings();
+    // Return masked key for display (or empty if none)
+    if (settings.apiKey) {
+      return settings.apiKey;
+    }
+    return process.env.GOOGLE_API_KEY || "";
+  });
+
+  ipcMain.handle("set-api-key", async (event, apiKey) => {
+    try {
+      const settings = loadSettings();
+      settings.apiKey = apiKey;
+      const saved = saveSettings(settings);
+
+      if (saved) {
+        // Update the current process env as well
+        process.env.GOOGLE_API_KEY = apiKey;
+        // Reset AI model so it reinitializes with new key
+        aiModel = null;
+        console.log("API key saved and applied");
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to save API key:", error);
+      return false;
+    }
   });
 }
 

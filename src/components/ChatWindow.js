@@ -6,6 +6,7 @@ import Modal from "./Chat/Modal";
 import Sidebar from "./Chat/Sidebar";
 import ScrollToBottomButton from "./UI/ScrollToBottomButton";
 import AuthModal from "./Auth/AuthModal";
+import SettingsModal from "./Settings/SettingsModal";
 import { useScrollManagement } from "../hooks/useScrollManagement";
 import { useAuth } from "../context/AuthContext";
 import { INITIAL_MESSAGES } from "../constants/initialMessages";
@@ -43,6 +44,7 @@ const ChatWindow = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const inputRef = useRef(null);
   const syncTimeoutRef = useRef(null);
@@ -183,7 +185,9 @@ const ChatWindow = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
-        if (authModalOpen) {
+        if (settingsModalOpen) {
+          setSettingsModalOpen(false);
+        } else if (authModalOpen) {
           setAuthModalOpen(false);
         } else if (isModalOpen) {
           closeModal();
@@ -221,7 +225,7 @@ const ChatWindow = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isModalOpen, sidebarOpen, activeConversationId, messages, authModalOpen]);
+  }, [isModalOpen, sidebarOpen, activeConversationId, messages, authModalOpen, settingsModalOpen]);
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
@@ -541,6 +545,7 @@ const ChatWindow = () => {
         onToggleSidebar={() => setSidebarOpen(prev => !prev)}
         onExport={handleExport}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenSettings={() => setSettingsModalOpen(true)}
       />
 
       <MessageList
@@ -594,6 +599,11 @@ const ChatWindow = () => {
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
+      />
+
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
       />
     </div>
   );
