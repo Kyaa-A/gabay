@@ -7,6 +7,10 @@ node_modules/
 build/
 dist/
 dist-new/
+dist-production/
+
+# Windows artifacts
+nul
 
 # Runtime data
 pids
