@@ -7,7 +7,7 @@ A personal AI chatbot for Windows. Get instant answers, boost productivity, and 
 ## Features
 
 - **Global Hotkey** - Press `Ctrl+L` to summon Gabay anywhere
-- **Portable Build** - Under 80 MB, no install required
+- **Portable** - Single exe file, no installation wizard needed
 - **Smart Formatting** - Code blocks, markdown, and copy-to-clipboard
 - **Cloud Sync** - Save and sync chat history with Supabase
 - **File Uploads** - Attach images and documents for AI analysis
@@ -23,10 +23,7 @@ Requires Windows 10/11 and internet connection for AI responses.
 ## Quick Start
 
 1. Download and run `Gabay.1.0.0.exe`
-2. Create a `.env` file with your Google API key:
-   ```
-   GOOGLE_API_KEY=your_api_key_here
-   ```
+2. Click the settings icon (gear) and enter your [Google AI API key](https://aistudio.google.com/apikey)
 3. Press `Ctrl+L` to toggle the chatbot window
 
 ## Development
