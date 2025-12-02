@@ -1,8 +1,8 @@
 {
-  "name": "whispr",
+  "name": "gabay",
   "version": "1.0.0",
-  "description": "Whispr - Personal AI Chatbot built with Electron and React",
-  "main": "public/main.js",
+  "description": "Gabay - Personal AI Chatbot built with Electron and React",
+  "main": "Whispr-Portable/main.js",
   "homepage": "./",
   "scripts": {
     "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-portable\"",
@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.1",
+    "@supabase/supabase-js": "^2.86.0",
     "autoprefixer": "^10.4.0",
     "dotenv": "^16.5.0",
     "postcss": "^8.4.0",
@@ -58,27 +59,23 @@
     ]
   },
   "build": {
-    "appId": "com.yourcompany.whispr",
-    "productName": "Whispr Personal AI Chatbot",
-          "directories": {
-        "output": "dist-production"
-      },
+    "appId": "com.asnari.gabay",
+    "productName": "Gabay",
+    "directories": {
+      "output": "dist-production"
+    },
     "files": [
       "build/**/*",
-      "public/main.js",
-      "public/preload.js",
+      "Whispr-Portable/main.js",
+      "Whispr-Portable/preload.js",
       "src/Image/**/*",
       "node_modules/**/*",
       "!node_modules/.cache"
     ],
     "extraMetadata": {
-      "main": "public/main.js"
+      "main": "Whispr-Portable/main.js"
     },
     "extraFiles": [
-      {
-        "from": ".env",
-        "to": "public/.env"
-      },
       {
         "from": ".env",
         "to": ".env"
@@ -88,7 +85,8 @@
     "win": {
       "target": "portable",
       "publish": null,
-      "sign": false
+      "signAndEditExecutable": false,
+      "sign": null
     },
     "nsis": {
       "oneClick": false,

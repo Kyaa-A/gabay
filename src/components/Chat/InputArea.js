@@ -23,6 +23,7 @@ const InputArea = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const canSend = !isDisabled || attachments.length > 0;
 
@@ -41,9 +42,12 @@ const InputArea = ({
         reader.onload = () => resolve(reader.result.split(",")[1]);
         reader.readAsDataURL(file);
       });
+      const fileName = file.name && file.name !== "image.png" && file.name !== "blob"
+        ? file.name
+        : `pasted-image-${Date.now()}.${file.type.split("/")[1] || "png"}`;
       newAttachments.push({
         id: Date.now() + Math.random(),
-        name: file.name,
+        name: fileName,
         type: file.type,
         size: file.size,
         data: base64,
@@ -75,6 +79,29 @@ const InputArea = ({
       const removed = attachments.find((a) => a.id === id);
       if (removed?.preview) URL.revokeObjectURL(removed.preview);
       onAttachmentsChange(attachments.filter((a) => a.id !== id));
+    }
+  };
+
+  const handlePaste = async (e) => {
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    const items = clipboardData.items;
+    const imageFiles = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      await processFiles(imageFiles);
     }
   };
 
@@ -181,9 +208,11 @@ const InputArea = ({
           </button>
 
           <textarea
+            ref={textareaRef}
             value={inputValue}
             onChange={onChange}
             onKeyPress={onKeyPress}
+            onPaste={handlePaste}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder="Message Gabay..."

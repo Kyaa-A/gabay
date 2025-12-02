@@ -1,7 +1,8 @@
 import React from "react";
 import GabayIcon from "../../Image/Whispr-no-bg.png";
+import UserMenu from "../Auth/UserMenu";
 
-const Header = ({ onClearChat }) => {
+const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth }) => {
   // Prevent double-click from maximizing
   const handleDoubleClick = (e) => {
     e.preventDefault();
@@ -22,8 +23,33 @@ const Header = ({ onClearChat }) => {
         cursor: "move",
       }}
     >
-      {/* Left: Logo and Title */}
+      {/* Left: Menu button, Logo and Title */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {/* Sidebar toggle */}
+        <button
+          onClick={onToggleSidebar}
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "8px",
+            backgroundColor: "transparent",
+            border: "1px solid #374151",
+            color: "#6b7280",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            WebkitAppRegion: "no-drag",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          title="Conversations (Ctrl+B)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          </svg>
+        </button>
+
         <div
           style={{
             width: "36px",
@@ -47,6 +73,35 @@ const Header = ({ onClearChat }) => {
 
       {/* Right: Actions */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", WebkitAppRegion: "no-drag" }}>
+        {/* User Menu / Sign In */}
+        <UserMenu onOpenAuth={onOpenAuth} />
+
+        {/* Export button */}
+        <button
+          onClick={onExport}
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "8px",
+            backgroundColor: "transparent",
+            border: "1px solid #374151",
+            color: "#6b7280",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          title="Export chat (Ctrl+E)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+
         <button
           onClick={onClearChat}
           style={{

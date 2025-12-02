@@ -9,89 +9,81 @@ export const useCopyToClipboard = () => {
 
     console.log("Attempting to copy:", textToCopy.substring(0, 100) + "...");
 
+    // Method 1: Try Electron clipboard API (most reliable in Electron)
     try {
-      // Method 1: Try Electron clipboard API (most reliable in Electron)
       if (window.electronAPI && window.electronAPI.writeText) {
         console.log("Using Electron clipboard API");
-        window.electronAPI.writeText(textToCopy);
-        return { success: true, method: "electron" };
+        const result = window.electronAPI.writeText(textToCopy);
+        if (result) {
+          console.log("Electron clipboard success");
+          return { success: true, method: "electron" };
+        }
       }
-      
-      // Method 2: Try modern clipboard API
+    } catch (e) {
+      console.log("Electron clipboard failed:", e);
+    }
+
+    // Method 2: Try modern clipboard API
+    try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         console.log("Using modern clipboard API");
         await navigator.clipboard.writeText(textToCopy);
         return { success: true, method: "modern" };
       }
-      
-      // Method 3: Create textarea and simulate Ctrl+A + Ctrl+C
+    } catch (e) {
+      console.log("Modern clipboard failed:", e);
+    }
+
+    // Method 3: Create textarea and use execCommand
+    try {
       console.log("Using textarea fallback method");
       const textArea = document.createElement("textarea");
       textArea.value = textToCopy;
-      
-      // Make sure the textarea is visible and focusable
+
+      // Position off-screen but still focusable
       textArea.style.position = "fixed";
-      textArea.style.top = "0";
-      textArea.style.left = "0";
-      textArea.style.width = "2em";
-      textArea.style.height = "2em";
-      textArea.style.padding = "0";
-      textArea.style.border = "none";
-      textArea.style.outline = "none";
-      textArea.style.boxShadow = "none";
-      textArea.style.background = "transparent";
-      textArea.style.opacity = "0";
-      textArea.style.zIndex = "-1";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
 
       document.body.appendChild(textArea);
-
-      // Focus the textarea
       textArea.focus();
-      
-      // Select all content (simulate Ctrl+A)
       textArea.select();
       textArea.setSelectionRange(0, textArea.value.length);
 
-      // Execute copy command (simulate Ctrl+C)
       const successful = document.execCommand("copy");
-      
-      // Clean up
       document.body.removeChild(textArea);
 
       if (successful) {
         console.log("Copy successful using execCommand");
         return { success: true, method: "execCommand" };
-      } else {
-        console.log("execCommand returned false, but content might still be copied");
-        // execCommand often returns false even when it works
-        return { success: true, method: "execCommand-fallback" };
       }
-      
-    } catch (err) {
-      console.error("Copy operation failed:", err);
-      
-      // Last resort: Try to select the modal content directly
-      try {
-        const modalContent = document.querySelector(".modal-content-text");
-        if (modalContent) {
-          console.log("Attempting to select modal content directly");
-          const range = document.createRange();
-          range.selectNodeContents(modalContent);
-          const selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-          
-          const copySuccess = document.execCommand("copy");
-          selection.removeAllRanges();
-          
+    } catch (e) {
+      console.log("Textarea fallback failed:", e);
+    }
+
+    // Method 4: Try to select the modal content directly
+    try {
+      const modalContent = document.querySelector(".modal-content-text");
+      if (modalContent) {
+        console.log("Attempting to select modal content directly");
+        const range = document.createRange();
+        range.selectNodeContents(modalContent);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const copySuccess = document.execCommand("copy");
+        selection.removeAllRanges();
+
+        if (copySuccess) {
           return { success: true, method: "direct-selection" };
         }
-      } catch (directErr) {
-        console.error("Direct selection also failed:", directErr);
       }
-      
-      return { success: false, method: "all-failed", error: err };
+    } catch (e) {
+      console.error("Direct selection also failed:", e);
     }
+
+    return { success: false, method: "all-failed" };
   };
 
   const showCopySuccess = (success = true, method = "") => {

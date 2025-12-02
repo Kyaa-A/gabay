@@ -48,7 +48,19 @@ const TypingIndicator = () => (
   </div>
 );
 
-const MessageList = ({ messages, isTyping, onOpenModal, messagesContainerRef, messagesEndRef, onScroll }) => (
+const MessageList = ({
+  messages,
+  isTyping,
+  onOpenModal,
+  messagesContainerRef,
+  messagesEndRef,
+  onScroll,
+  onEditMessage,
+  onDeleteMessage,
+  onRegenerateMessage,
+  onReaction,
+  regeneratingId,
+}) => (
   <div
     ref={messagesContainerRef}
     onScroll={onScroll}
@@ -62,7 +74,16 @@ const MessageList = ({ messages, isTyping, onOpenModal, messagesContainerRef, me
     }}
   >
     {messages.map((msg) => (
-      <Message key={msg.id} message={msg} onOpenModal={onOpenModal} />
+      <Message
+        key={msg.id}
+        message={msg}
+        onOpenModal={onOpenModal}
+        onEdit={onEditMessage}
+        onDelete={onDeleteMessage}
+        onRegenerate={onRegenerateMessage}
+        onReaction={onReaction}
+        isRegenerating={regeneratingId === msg.id}
+      />
     ))}
     {isTyping && <TypingIndicator />}
     <div ref={messagesEndRef} />

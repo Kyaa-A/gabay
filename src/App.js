@@ -1,5 +1,7 @@
 import React from 'react';
 import ChatWindow from './components/ChatWindow';
+import LoginScreen from './components/Auth/LoginScreen';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 const Landing = () => (
   <div className="w-screen h-screen bg-chat-bg text-white flex items-center justify-center">
@@ -29,18 +31,27 @@ const Landing = () => (
           <li className="flex items-start gap-2"><span className="text-green-400">✓</span><span>Smart formatting, code blocks, and copy‑to‑clipboard</span></li>
         </ul>
         <div className="flex flex-wrap items-center gap-4">
-          <a href="/Whispr-Portable/Launch-Whispr.bat" className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-md text-lg shadow-md shadow-blue-900/30 flex items-center gap-2">
+          {/* GitHub Releases download link */}
+          <a
+            href="https://github.com/Kyaa-A/gabay/releases/latest/download/Gabay.1.0.0.exe"
+            download
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-md text-lg shadow-md shadow-blue-900/30 flex items-center gap-2"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 5h16v4H4V5zm0 5h7v9H4v-9zm9 0h7v9h-7v-9z" />
             </svg>
             Download for Windows
           </a>
-          <a href="#" className="bg-transparent border border-blue-500/60 text-blue-300 hover:bg-blue-600/20 px-6 py-3 rounded-md text-lg flex items-center gap-2" aria-label="Download for Mac">
+          <button
+            className="bg-transparent border border-blue-500/60 text-blue-300 hover:bg-blue-600/20 px-6 py-3 rounded-md text-lg flex items-center gap-2 opacity-50 cursor-not-allowed"
+            disabled
+            title="Coming soon"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M16.365 1.43c0 1.14-.47 2.205-1.227 3.055-.784.88-2.117 1.55-3.24 1.46-.14-1.1.42-2.26 1.175-3.08.79-.87 2.197-1.49 3.292-1.435zM20.5 17.152c-.64 1.49-1.42 2.98-2.56 4.39-1 .13-1.99-.07-2.87-.42-.79-.31-1.52-.74-2.33-.74-.85 0-1.61.43-2.43.74-.92.35-1.87.55-2.89.41-1.16-1.43-1.99-2.99-2.63-4.52-.73-1.72-1.1-3.4-1.1-4.54 0-1.84.62-3.32 1.87-4.38.89-.76 2.03-1.2 3.21-1.18.88.02 1.72.32 2.48.64.67.28 1.39.62 1.86.62.41 0 1.2-.37 1.93-.66.81-.33 1.63-.54 2.44-.51 1.83.05 3.31.75 4.2 1.92-1.76 1.05-2.6 2.7-2.6 4.96 0 1.28.35 2.62 1.05 4.03z"/>
             </svg>
             Download for Mac
-          </a>
+          </button>
         </div>
         <p className="mt-3 text-xs opacity-60">Runs on Windows 10/11. Requires internet for AI replies.</p>
       </div>
@@ -56,16 +67,73 @@ const Landing = () => (
   </div>
 );
 
+// Main app content that requires auth
+const AppContent = () => {
+  const { isAuthenticated, loading, isConfigured } = useAuth();
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#0f172a',
+          borderRadius: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#6b7280',
+          gap: '12px',
+        }}
+      >
+        <div
+          style={{
+            width: '24px',
+            height: '24px',
+            border: '3px solid #374151',
+            borderTopColor: '#3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
+        <span style={{ fontSize: '13px' }}>Loading...</span>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // If Supabase not configured, allow guest access
+  if (!isConfigured) {
+    return <ChatWindow />;
+  }
+
+  // Require login
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  // Authenticated - show chat
+  return <ChatWindow />;
+};
+
 function App() {
   // Detect Electron renderer reliably (preload exposes electronAPI; userAgent also contains 'Electron')
   const isElectron = Boolean(typeof window !== 'undefined' && window.electronAPI) || /Electron/i.test(navigator.userAgent || '');
   return isElectron ? (
-    <div className="App h-screen w-screen bg-chat-bg overflow-hidden m-0 p-0">
-      <ChatWindow />
-    </div>
+    <AuthProvider>
+      <div className="App h-screen w-screen bg-chat-bg overflow-hidden m-0 p-0">
+        <AppContent />
+      </div>
+    </AuthProvider>
   ) : (
     <Landing />
   );
 }
 
-export default App; 
+export default App;

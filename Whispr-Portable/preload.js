@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   sendMessageWithAttachments: (message, attachments) =>
     ipcRenderer.invoke("ai-message-multimodal", { message, attachments }),
 
+  // Clear AI conversation history (for switching conversations)
+  clearConversationHistory: () => ipcRenderer.invoke("clear-conversation-history"),
+
   // Window control methods
   closeWindow: () => ipcRenderer.send("close-window"),
   minimizeWindow: () => ipcRenderer.send("minimize-window"),
