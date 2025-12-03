@@ -75,12 +75,6 @@
     "extraMetadata": {
       "main": "Whispr-Portable/main.js"
     },
-    "extraFiles": [
-      {
-        "from": ".env",
-        "to": ".env"
-      }
-    ],
     "icon": "src/Image/Whispr-no-bg.png",
     "win": {
       "target": "portable",
