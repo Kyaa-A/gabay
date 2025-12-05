@@ -11,16 +11,21 @@ const Sidebar = ({
   onClose,
   searchQuery,
   onSearchChange,
+  toggleButtonRef,
 }) => {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const sidebarRef = useRef(null);
 
-  // Close sidebar when clicking outside
+  // Close sidebar when clicking outside (but not on the toggle button)
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e) => {
+      // Ignore clicks on the toggle button - let it handle its own toggle
+      if (toggleButtonRef?.current?.contains(e.target)) {
+        return;
+      }
       if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
         onClose();
       }
@@ -35,7 +40,7 @@ const Sidebar = ({
       clearTimeout(timer);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, toggleButtonRef]);
 
   const handleStartEdit = (e, conv) => {
     e.stopPropagation();
@@ -60,8 +65,6 @@ const Sidebar = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <div
       ref={sidebarRef}
@@ -76,40 +79,54 @@ const Sidebar = ({
         borderRight: "1px solid #1f2937",
         display: "flex",
         flexDirection: "column",
-        zIndex: 100,
-        animation: "slideIn 0.2s ease-out",
+        zIndex: 2000,
+        transform: isOpen ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        pointerEvents: isOpen ? "auto" : "none",
       }}
     >
-      {/* Header */}
+      {/* Top area with hamburger button */}
       <div
         style={{
-          padding: "16px",
-          borderBottom: "1px solid #1f2937",
+          padding: "14px 16px",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: "12px",
+          borderBottom: "1px solid #1f2937",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#f9fafb" }}>
-          Conversations
-        </h2>
+        {/* Hamburger button to close */}
         <button
           onClick={onClose}
           style={{
-            background: "transparent",
-            border: "none",
-            color: "#6b7280",
+            width: "32px",
+            height: "32px",
+            borderRadius: "10px",
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            color: "#9ca3af",
             cursor: "pointer",
-            padding: "4px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+            e.currentTarget.style.color = "#f9fafb";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+            e.currentTarget.style.color = "#9ca3af";
+          }}
+          title="Close sidebar"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 12h18M3 6h18M3 18h18" />
           </svg>
         </button>
+        <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#f9fafb" }}>
+          Conversations
+        </h2>
       </div>
 
       {/* New Chat Button */}

@@ -2,7 +2,7 @@ import React from "react";
 import GabayIcon from "../../Image/Whispr-no-bg.png";
 import UserMenu from "../Auth/UserMenu";
 
-const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSettings }) => {
+const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSettings, sidebarToggleRef }) => {
   // Prevent double-click from maximizing
   const handleDoubleClick = (e) => {
     e.preventDefault();
@@ -45,20 +45,21 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         background: "linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)",
         backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-        borderTopLeftRadius: "20px",
-        borderTopRightRadius: "20px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         WebkitAppRegion: "drag",
         cursor: "move",
         boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+        position: "relative",
+        zIndex: 1000,
       }}
     >
       {/* Left: Menu button, Logo and Title */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         {/* Sidebar toggle */}
         <button
+          ref={sidebarToggleRef}
           onClick={onToggleSidebar}
           style={buttonStyle}
           onMouseEnter={buttonHoverEnter}

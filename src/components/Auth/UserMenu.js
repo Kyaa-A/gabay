@@ -68,7 +68,7 @@ const UserMenu = ({ onOpenAuth }) => {
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="no-drag" style={{ position: 'relative', zIndex: 1001 }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -117,7 +117,7 @@ const UserMenu = ({ onOpenAuth }) => {
               left: 0,
               right: 0,
               bottom: 0,
-              zIndex: 99,
+              zIndex: 9998,
             }}
             onClick={() => setIsOpen(false)}
           />
@@ -125,15 +125,18 @@ const UserMenu = ({ onOpenAuth }) => {
           <div
             style={{
               position: 'absolute',
-              top: '40px',
+              top: '100%',
               right: 0,
+              marginTop: '8px',
               width: '200px',
+              maxHeight: 'calc(100vh - 120px)',
+              overflowY: 'auto',
               backgroundColor: '#1f2937',
               borderRadius: '12px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
               border: '1px solid #374151',
               padding: '8px',
-              zIndex: 100,
+              zIndex: 9999,
               pointerEvents: 'auto',
             }}
           >

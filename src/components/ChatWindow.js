@@ -48,6 +48,7 @@ const ChatWindow = () => {
 
   const inputRef = useRef(null);
   const syncTimeoutRef = useRef(null);
+  const sidebarToggleRef = useRef(null);
 
   const {
     autoScroll,
@@ -518,11 +519,8 @@ const ChatWindow = () => {
         flexDirection: "column",
         backgroundColor: "#0f172a",
         color: "white",
-        borderRadius: "20px",
         overflow: "hidden",
         boxSizing: "border-box",
-        clipPath: "inset(0 round 20px)",
-        boxShadow: "0 0 0 1px #374151",
         position: "relative",
       }}
       className="animate-slide-up"
@@ -533,6 +531,7 @@ const ChatWindow = () => {
         onExport={handleExport}
         onOpenAuth={() => setAuthModalOpen(true)}
         onOpenSettings={() => setSettingsModalOpen(true)}
+        sidebarToggleRef={sidebarToggleRef}
       />
 
       <MessageList
@@ -580,6 +579,7 @@ const ChatWindow = () => {
         onClose={() => setSidebarOpen(false)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        toggleButtonRef={sidebarToggleRef}
       />
 
       <AuthModal
