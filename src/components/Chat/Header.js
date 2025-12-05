@@ -9,18 +9,48 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
     e.stopPropagation();
   };
 
+  // Modern button base style
+  const buttonStyle = {
+    width: "32px",
+    height: "32px",
+    borderRadius: "10px",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    color: "#9ca3af",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    WebkitAppRegion: "no-drag",
+    transition: "all 0.2s ease",
+  };
+
+  const buttonHoverEnter = (e) => {
+    e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+    e.currentTarget.style.color = "#f9fafb";
+    e.currentTarget.style.transform = "scale(1.05)";
+  };
+
+  const buttonHoverLeave = (e) => {
+    e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+    e.currentTarget.style.color = "#9ca3af";
+    e.currentTarget.style.transform = "scale(1)";
+  };
+
   return (
     <div
       onDoubleClick={handleDoubleClick}
       style={{
-        padding: "12px 16px",
-        backgroundColor: "#111827",
-        borderBottom: "1px solid #1f2937",
+        padding: "14px 18px",
+        background: "linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)",
+        backdropFilter: "blur(10px)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         WebkitAppRegion: "drag",
         cursor: "move",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
       }}
     >
       {/* Left: Menu button, Logo and Title */}
@@ -28,21 +58,9 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         {/* Sidebar toggle */}
         <button
           onClick={onToggleSidebar}
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "transparent",
-            border: "1px solid #374151",
-            color: "#6b7280",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            WebkitAppRegion: "no-drag",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          style={buttonStyle}
+          onMouseEnter={buttonHoverEnter}
+          onMouseLeave={buttonHoverLeave}
           title="Conversations (Ctrl+B)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -79,20 +97,9 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         {/* Settings button */}
         <button
           onClick={onOpenSettings}
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "transparent",
-            border: "1px solid #374151",
-            color: "#6b7280",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          style={buttonStyle}
+          onMouseEnter={buttonHoverEnter}
+          onMouseLeave={buttonHoverLeave}
           title="Settings"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,20 +111,9 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         {/* Export button */}
         <button
           onClick={onExport}
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "transparent",
-            border: "1px solid #374151",
-            color: "#6b7280",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          style={buttonStyle}
+          onMouseEnter={buttonHoverEnter}
+          onMouseLeave={buttonHoverLeave}
           title="Export chat (Ctrl+E)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -129,20 +125,9 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
 
         <button
           onClick={onClearChat}
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "transparent",
-            border: "1px solid #374151",
-            color: "#6b7280",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1f2937"; e.currentTarget.style.color = "#f9fafb"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+          style={buttonStyle}
+          onMouseEnter={buttonHoverEnter}
+          onMouseLeave={buttonHoverLeave}
           title="Clear chat"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -154,19 +139,19 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         <button
           onClick={() => window.electronAPI?.minimizeWindow()}
           style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "#eab308",
-            border: "none",
-            color: "white",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            ...buttonStyle,
+            backgroundColor: "rgba(234, 179, 8, 0.15)",
+            border: "1px solid rgba(234, 179, 8, 0.3)",
+            color: "#fbbf24",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#ca8a04")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#eab308")}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(234, 179, 8, 0.25)";
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(234, 179, 8, 0.15)";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
           title="Minimize"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
@@ -177,19 +162,19 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         <button
           onClick={() => window.electronAPI?.closeWindow()}
           style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            backgroundColor: "#ef4444",
-            border: "none",
-            color: "white",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            ...buttonStyle,
+            backgroundColor: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "#f87171",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.15)";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
           title="Close"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">

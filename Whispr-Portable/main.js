@@ -40,8 +40,19 @@ let settingsPath = null;
 // Initialize settings paths (call after app is ready)
 function initSettingsPaths() {
   if (!userDataPath) {
-    userDataPath = app.getPath("userData");
-    settingsPath = path.join(userDataPath, "settings.json");
+    try {
+      userDataPath = app.getPath("userData");
+      settingsPath = path.join(userDataPath, "settings.json");
+      // Ensure directory exists
+      if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+      }
+    } catch (error) {
+      console.error("Failed to initialize settings path:", error);
+      // Fallback to temp directory if userData fails
+      userDataPath = app.getPath("temp");
+      settingsPath = path.join(userDataPath, "gabay-settings.json");
+    }
   }
 }
 
@@ -78,6 +89,16 @@ let isDev = process.env.ELECTRON_IS_DEV === "true";
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
+
+// Catch uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit - keep app running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 let mainWindow = null;
 let tray = null;
