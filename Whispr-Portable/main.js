@@ -714,10 +714,11 @@ Analyze the provided content and respond thoughtfully:`;
     }
   });
 
-  // Handle window control - hide instead of quit
+  // Handle window control
   ipcMain.on("close-window", () => {
-    console.log("Close window IPC received - hiding window");
-    hideWindow();
+    console.log("Close window IPC received - quitting app");
+    app.isQuiting = true;
+    app.quit();
   });
 
   ipcMain.on("minimize-window", () => {

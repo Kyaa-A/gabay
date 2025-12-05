@@ -45,6 +45,8 @@ const Header = ({ onClearChat, onToggleSidebar, onExport, onOpenAuth, onOpenSett
         background: "linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)",
         backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+        borderTopLeftRadius: "20px",
+        borderTopRightRadius: "20px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
