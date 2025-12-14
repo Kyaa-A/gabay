@@ -7,6 +7,8 @@ import Sidebar from "./Chat/Sidebar";
 import ScrollToBottomButton from "./UI/ScrollToBottomButton";
 import AuthModal from "./Auth/AuthModal";
 import SettingsModal from "./Settings/SettingsModal";
+import KeyboardShortcutsModal from "./Settings/KeyboardShortcutsModal";
+import SystemPromptModal from "./Settings/SystemPromptModal";
 import { useScrollManagement } from "../hooks/useScrollManagement";
 import { useAuth } from "../context/AuthContext";
 import { INITIAL_MESSAGES } from "../constants/initialMessages";
@@ -21,8 +23,9 @@ import {
   getConversationById,
   generateTitle,
   exportConversationAsText,
-  searchConversations,
   generateId,
+  togglePinConversation,
+  cleanupDuplicateChats,
 } from "../utils/storage";
 
 const ChatWindow = () => {
@@ -45,6 +48,8 @@ const ChatWindow = () => {
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [personalityModalOpen, setPersonalityModalOpen] = useState(false);
 
   const inputRef = useRef(null);
   const syncTimeoutRef = useRef(null);
@@ -60,13 +65,8 @@ const ChatWindow = () => {
   } = useScrollManagement(messages);
 
   // Load conversations - LOCAL FIRST approach for better UX
+  // Using empty dependency array to ensure this only runs ONCE on mount
   useEffect(() => {
-    // Don't load until auth is ready
-    if (authLoading) {
-      console.log('Auth still loading, waiting...');
-      return;
-    }
-
     // Helper to load and set conversations from array
     const setConversationsFromArray = (convs) => {
       if (convs.length > 0) {
@@ -86,80 +86,110 @@ const ChatWindow = () => {
       return false;
     };
 
-    // Helper to create new conversation
-    const createNew = () => {
+    // Helper to create new conversation ONLY if none exist
+    const createNewIfNeeded = () => {
+      // Double-check localStorage to prevent duplicates
+      const existingConvs = getConversations();
+      if (existingConvs.length > 0) {
+        console.log('Conversations already exist, not creating new one');
+        return existingConvs[0];
+      }
       console.log('Creating new conversation');
       const newConv = createConversation("New Chat");
-      setConversations([newConv]);
-      setActiveConvId(newConv.id);
-      setMessages(newConv.messages.map(m => ({
-        ...m,
-        timestamp: new Date(m.timestamp)
-      })));
+      return newConv;
     };
 
-    const loadConversations = async () => {
-      console.log('loadConversations called:', { isAuthenticated, userId: user?.id });
+    const loadConversations = () => {
+      console.log('loadConversations called (initial mount)');
 
-      // STEP 1: Always load local storage FIRST for instant UI
+      // Clean up any duplicate empty chats first
+      cleanupDuplicateChats();
+
+      // Load from local storage
       const localConvs = getConversations();
       console.log('Local conversations found:', localConvs.length);
 
       if (localConvs.length > 0) {
         setConversationsFromArray(localConvs);
       } else {
-        createNew();
-      }
-
-      // STEP 2: If authenticated, try to sync from cloud IN BACKGROUND
-      if (isAuthenticated && user?.id) {
-        console.log('User authenticated, syncing from cloud in background...');
-
-        // Don't await - let it run in background
-        syncFromCloud(user.id).then(cloudConvs => {
-          console.log('Background sync returned:', cloudConvs?.length || 0, 'conversations');
-
-          // Only update UI if cloud has MORE conversations than local
-          // or if cloud has conversations we don't have locally
-          if (cloudConvs && cloudConvs.length > 0) {
-            const currentLocal = getConversations();
-            const localIds = new Set(currentLocal.map(c => c.id));
-            const hasNewFromCloud = cloudConvs.some(c => !localIds.has(c.id));
-
-            if (hasNewFromCloud || cloudConvs.length > currentLocal.length) {
-              console.log('Cloud has new/more conversations, updating UI');
-              setConversationsFromArray(cloudConvs);
-            } else {
-              console.log('Local is up to date, no UI update needed');
-            }
-          }
-        }).catch(err => {
-          console.error('Background cloud sync failed:', err);
-          // Already showing local data, so no action needed
-        });
-      } else {
-        console.log('Not authenticated, using local storage only');
+        const newConv = createNewIfNeeded();
+        setConversations([newConv]);
+        setActiveConvId(newConv.id);
+        setMessages(newConv.messages.map(m => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        })));
       }
     };
 
     loadConversations();
-  }, [authLoading, isAuthenticated, user?.id]);
+  // eslint-disable-next-line
+  }, []); // Empty dependency array - only run on mount
+
+  // Cloud sync effect - separate from initial load
+  // Using a ref to ensure this only runs once per auth session
+  const hasSyncedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || authLoading) {
+      hasSyncedRef.current = false; // Reset when logged out
+      return;
+    }
+
+    // Only sync once per session
+    if (hasSyncedRef.current) {
+      return;
+    }
+    hasSyncedRef.current = true;
+
+    console.log('User authenticated, syncing from cloud in background...');
+
+    syncFromCloud(user.id).then(cloudConvs => {
+      console.log('Background sync returned:', cloudConvs?.length || 0, 'conversations');
+
+      if (cloudConvs && cloudConvs.length > 0) {
+        const currentLocal = getConversations();
+        const localIds = new Set(currentLocal.map(c => c.id));
+        const hasNewFromCloud = cloudConvs.some(c => !localIds.has(c.id));
+
+        if (hasNewFromCloud || cloudConvs.length > currentLocal.length) {
+          console.log('Cloud has new/more conversations, updating UI');
+          const sorted = [...cloudConvs].sort((a, b) =>
+            new Date(b.updatedAt) - new Date(a.updatedAt)
+          );
+          setConversations(sorted);
+        }
+      }
+    }).catch(err => {
+      console.error('Background cloud sync failed:', err);
+    });
+  // eslint-disable-next-line
+  }, [isAuthenticated, user?.id, authLoading]);
 
   // Save messages to storage when they change
   useEffect(() => {
     if (activeConversationId && messages.length > 0) {
+      // Check if conversation exists before updating
+      const existingConv = getConversationById(activeConversationId);
+      if (!existingConv) {
+        console.warn('Active conversation not found in storage:', activeConversationId);
+        return;
+      }
+
       const serializedMessages = messages.map(m => ({
         ...m,
         timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
       }));
 
       const title = generateTitle(messages);
-      updateConversation(activeConversationId, {
+      const updated = updateConversation(activeConversationId, {
         messages: serializedMessages,
         title
       });
 
-      setConversations(getConversations());
+      if (updated) {
+        setConversations(getConversations());
+      }
 
       // Debounced cloud sync - sync after 2 seconds of inactivity
       if (isAuthenticated) {
@@ -185,8 +215,17 @@ const ChatWindow = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // ? key for keyboard shortcuts help
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShortcutsModalOpen(true);
+        return;
+      }
+
       if (e.key === "Escape") {
-        if (settingsModalOpen) {
+        if (shortcutsModalOpen) {
+          setShortcutsModalOpen(false);
+        } else if (settingsModalOpen) {
           setSettingsModalOpen(false);
         } else if (authModalOpen) {
           setAuthModalOpen(false);
@@ -226,7 +265,7 @@ const ChatWindow = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isModalOpen, sidebarOpen, activeConversationId, messages, authModalOpen, settingsModalOpen]);
+  }, [isModalOpen, sidebarOpen, activeConversationId, messages, authModalOpen, settingsModalOpen, shortcutsModalOpen]);
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
@@ -262,6 +301,7 @@ const ChatWindow = () => {
 
     try {
       let aiResponse;
+      const systemPrompt = getCurrentSystemPrompt();
 
       if (attachmentsToSend.length > 0) {
         aiResponse = await window.electronAPI.sendMessageWithAttachments(
@@ -270,10 +310,11 @@ const ChatWindow = () => {
             name: a.name,
             type: a.type,
             data: a.data,
-          }))
+          })),
+          systemPrompt
         );
       } else {
-        aiResponse = await window.electronAPI.sendMessage(userMessage);
+        aiResponse = await window.electronAPI.sendMessage(userMessage, systemPrompt);
       }
 
       const botResponse = {
@@ -292,9 +333,26 @@ const ChatWindow = () => {
     } catch (error) {
       console.error("Error getting AI response:", error);
 
+      // Show the actual error message from the backend
+      let errorText = "I'm sorry, I'm having trouble connecting to my AI services right now. Please try again in a moment.";
+
+      if (error?.message) {
+        if (error.message.includes("API key")) {
+          errorText = "No API key configured. Please go to Settings (click the ⋮ menu) and add an API key for your chosen AI provider.";
+        } else if (error.message.includes("quota") || error.message.includes("rate_limit")) {
+          errorText = "API quota or rate limit exceeded. Please try again later or switch to a different AI provider in Settings.";
+        } else if (error.message.includes("network") || error.message.includes("fetch") || error.message.includes("ENOTFOUND")) {
+          errorText = "Network error - please check your internet connection and try again.";
+        } else if (error.message.includes("Invalid") || error.message.includes("authentication")) {
+          errorText = "Invalid API key. Please check your API key in Settings.";
+        } else {
+          errorText = `AI Error: ${error.message}`;
+        }
+      }
+
       const errorResponse = {
         id: generateId(),
-        text: "I'm sorry, I'm having trouble connecting to my AI services right now. Please try again in a moment.",
+        text: errorText,
         sender: "bot",
         timestamp: new Date(),
       };
@@ -469,8 +527,12 @@ const ChatWindow = () => {
   };
 
   const handleDeleteConversation = (id) => {
+    console.log('Deleting conversation:', id);
     const remaining = deleteConversation(id);
-    setConversations(remaining);
+    console.log('Remaining conversations:', remaining.length);
+
+    // Force a new array reference to trigger re-render
+    setConversations([...remaining]);
 
     // Delete from cloud if authenticated
     if (isAuthenticated) {
@@ -478,15 +540,19 @@ const ChatWindow = () => {
     }
 
     if (remaining.length === 0) {
+      console.log('No conversations left, creating new one');
       const newConv = createConversation("New Chat");
       setConversations([newConv]);
       setActiveConvId(newConv.id);
+      setActiveConversationId(newConv.id);
       setMessages(newConv.messages.map(m => ({
         ...m,
         timestamp: new Date(m.timestamp)
       })));
     } else if (id === activeConversationId) {
+      console.log('Deleted active conversation, switching to:', remaining[0].id);
       setActiveConvId(remaining[0].id);
+      setActiveConversationId(remaining[0].id);
       setMessages(remaining[0].messages.map(m => ({
         ...m,
         timestamp: new Date(m.timestamp)
@@ -495,8 +561,31 @@ const ChatWindow = () => {
   };
 
   const handleRenameConversation = (id, newTitle) => {
+    // Update in localStorage (updateConversation already sets updatedAt)
     updateConversation(id, { title: newTitle });
-    setConversations(getConversations());
+    // Update local state with new updatedAt
+    const now = new Date().toISOString();
+    setConversations(prev => prev.map(conv =>
+      conv.id === id ? { ...conv, title: newTitle, updatedAt: now } : conv
+    ));
+    // Sync to cloud immediately so changes aren't lost
+    if (isAuthenticated) {
+      setTimeout(() => syncToCloud(), 500);
+    }
+  };
+
+  const handlePinConversation = (id) => {
+    // Update in localStorage
+    togglePinConversation(id);
+    // Update local state with new updatedAt so it's recognized as newer than cloud
+    const now = new Date().toISOString();
+    setConversations(prev => prev.map(conv =>
+      conv.id === id ? { ...conv, pinned: !conv.pinned, updatedAt: now } : conv
+    ));
+    // Sync to cloud immediately so changes aren't lost
+    if (isAuthenticated) {
+      setTimeout(() => syncToCloud(), 500);
+    }
   };
 
   const handleExport = () => {
@@ -506,9 +595,31 @@ const ChatWindow = () => {
     }
   };
 
+  const handleSaveSystemPrompt = (prompt) => {
+    if (activeConversationId) {
+      updateConversation(activeConversationId, { systemPrompt: prompt });
+      setConversations(getConversations());
+    }
+  };
+
+  const getCurrentSystemPrompt = () => {
+    const conv = getConversationById(activeConversationId);
+    return conv?.systemPrompt || null;
+  };
+
+  // Sort conversations for display (pinned first, then by date)
+  const sortedConversations = [...conversations].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
+
   const filteredConversations = searchQuery.trim()
-    ? searchConversations(searchQuery)
-    : conversations;
+    ? sortedConversations.filter(conv =>
+        conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conv.messages.some(msg => msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : sortedConversations;
 
   return (
     <div
@@ -531,6 +642,7 @@ const ChatWindow = () => {
         onExport={handleExport}
         onOpenAuth={() => setAuthModalOpen(true)}
         onOpenSettings={() => setSettingsModalOpen(true)}
+        onOpenPersonality={() => setPersonalityModalOpen(true)}
         sidebarToggleRef={sidebarToggleRef}
       />
 
@@ -575,6 +687,7 @@ const ChatWindow = () => {
         onNewChat={handleNewConversation}
         onDelete={handleDeleteConversation}
         onRename={handleRenameConversation}
+        onPin={handlePinConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         searchQuery={searchQuery}
@@ -590,6 +703,18 @@ const ChatWindow = () => {
       <SettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+      />
+
+      <SystemPromptModal
+        isOpen={personalityModalOpen}
+        onClose={() => setPersonalityModalOpen(false)}
+        currentPrompt={getCurrentSystemPrompt()}
+        onSave={handleSaveSystemPrompt}
       />
     </div>
   );

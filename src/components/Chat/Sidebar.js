@@ -7,6 +7,7 @@ const Sidebar = ({
   onNewChat,
   onDelete,
   onRename,
+  onPin,
   isOpen,
   onClose,
   searchQuery,
@@ -26,31 +27,30 @@ const Sidebar = ({
       if (toggleButtonRef?.current?.contains(e.target)) {
         return;
       }
-      if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
-        onClose();
+      // Ignore clicks inside the sidebar
+      if (sidebarRef.current && sidebarRef.current.contains(e.target)) {
+        return;
       }
+      // Close only if clicking outside
+      onClose();
     };
 
+    // Use click event (not mousedown) so button handlers fire first
     // Small delay to prevent immediate close on the same click that opened it
     const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
-    }, 100);
+      document.addEventListener("click", handleClickOutside);
+    }, 150);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, [isOpen, onClose, toggleButtonRef]);
 
-  const handleStartEdit = (e, conv) => {
-    e.stopPropagation();
-    setEditingId(conv.id);
-    setEditTitle(conv.title);
-  };
-
   const handleSaveEdit = (id) => {
-    if (editTitle.trim()) {
-      onRename(id, editTitle.trim());
+    const trimmedTitle = editTitle.trim();
+    if (trimmedTitle) {
+      onRename(id, trimmedTitle);
     }
     setEditingId(null);
     setEditTitle("");
@@ -68,7 +68,6 @@ const Sidebar = ({
   return (
     <div
       ref={sidebarRef}
-      className="no-drag"
       style={{
         position: "absolute",
         top: 0,
@@ -83,6 +82,7 @@ const Sidebar = ({
         transform: isOpen ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         pointerEvents: isOpen ? "auto" : "none",
+        WebkitAppRegion: "no-drag",
       }}
     >
       {/* Top area with hamburger button */}
@@ -209,7 +209,11 @@ const Sidebar = ({
           conversations.map((conv) => (
             <div
               key={conv.id}
-              onClick={() => onSelect(conv.id)}
+              onClick={(e) => {
+                // Only select if clicking on the row itself, not action buttons
+                if (e.target.closest('[data-action]')) return;
+                onSelect(conv.id);
+              }}
               style={{
                 padding: "12px",
                 marginBottom: "4px",
@@ -221,6 +225,7 @@ const Sidebar = ({
                 justifyContent: "space-between",
                 gap: "8px",
                 transition: "background-color 0.15s",
+                WebkitAppRegion: "no-drag",
               }}
               onMouseEnter={(e) => {
                 if (conv.id !== activeId) {
@@ -234,25 +239,71 @@ const Sidebar = ({
               }}
             >
               {editingId === conv.id ? (
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onBlur={() => handleSaveEdit(conv.id)}
-                  onKeyDown={(e) => handleKeyDown(e, conv.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
+                <div
                   style={{
-                    flex: 1,
-                    background: "#0f172a",
-                    border: "1px solid #3b82f6",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    color: "#f3f4f6",
-                    fontSize: "13px",
-                    outline: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
                   }}
-                />
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, conv.id)}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      background: "#0f172a",
+                      border: "2px solid #3b82f6",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      color: "#f3f4f6",
+                      fontSize: "13px",
+                      outline: "none",
+                      minWidth: 0,
+                    }}
+                  />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSaveEdit(conv.id)}
+                    style={{
+                      background: "#3b82f6",
+                      border: "none",
+                      borderRadius: "6px",
+                      color: "white",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Save
+                  </div>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setEditingId(null);
+                      setEditTitle("");
+                    }}
+                    style={{
+                      background: "#374151",
+                      border: "none",
+                      borderRadius: "6px",
+                      color: "#9ca3af",
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    ✕
+                  </div>
+                </div>
               ) : (
                 <>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -264,8 +315,16 @@ const Sidebar = ({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
                       }}
                     >
+                      {conv.pinned && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" strokeWidth="2">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                      )}
                       {conv.title}
                     </div>
                     <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>
@@ -273,34 +332,71 @@ const Sidebar = ({
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "4px",
-                      opacity: 0,
-                      transition: "opacity 0.15s",
-                    }}
-                    className="conv-actions"
-                  >
-                    <button
-                      onClick={(e) => handleStartEdit(e, conv)}
+                  {/* Actions - always visible */}
+                  <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                    {/* Pin Button */}
+                    <div
+                      data-action="pin"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPin(conv.id);
+                      }}
+                      style={{
+                        background: conv.pinned ? "rgba(251, 191, 36, 0.15)" : "transparent",
+                        border: "none",
+                        color: conv.pinned ? "#fbbf24" : "#9ca3af",
+                        cursor: "pointer",
+                        padding: "8px",
+                        borderRadius: "6px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: "32px",
+                        minHeight: "32px",
+                      }}
+                      title={conv.pinned ? "Unpin" : "Pin"}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={conv.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" style={{ pointerEvents: "none" }}>
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    </div>
+                    {/* Edit Button */}
+                    <div
+                      data-action="edit"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(conv.id);
+                        setEditTitle(conv.title);
+                      }}
                       style={{
                         background: "transparent",
                         border: "none",
-                        color: "#6b7280",
+                        color: "#9ca3af",
                         cursor: "pointer",
-                        padding: "4px",
-                        borderRadius: "4px",
+                        padding: "8px",
+                        borderRadius: "6px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: "32px",
+                        minHeight: "32px",
                       }}
                       title="Rename"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ pointerEvents: "none" }}>
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                       </svg>
-                    </button>
-                    <button
+                    </div>
+                    {/* Delete Button */}
+                    <div
+                      data-action="delete"
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         onDelete(conv.id);
@@ -308,18 +404,23 @@ const Sidebar = ({
                       style={{
                         background: "transparent",
                         border: "none",
-                        color: "#ef4444",
+                        color: "#9ca3af",
                         cursor: "pointer",
-                        padding: "4px",
-                        borderRadius: "4px",
+                        padding: "8px",
+                        borderRadius: "6px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: "32px",
+                        minHeight: "32px",
                       }}
                       title="Delete"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ pointerEvents: "none" }}>
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
-                    </button>
+                    </div>
                   </div>
                 </>
               )}
@@ -346,12 +447,6 @@ const Sidebar = ({
         @keyframes slideIn {
           from { transform: translateX(-100%); }
           to { transform: translateX(0); }
-        }
-        .conv-actions {
-          opacity: 0 !important;
-        }
-        div:hover > .conv-actions {
-          opacity: 1 !important;
         }
       `}</style>
     </div>

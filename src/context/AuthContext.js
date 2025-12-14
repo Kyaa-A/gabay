@@ -278,14 +278,32 @@ export const AuthProvider = ({ children }) => {
       const localConversations = getConversations();
       console.log('syncFromCloud: got', localConversations?.length || 0, 'from local');
 
-      // Merge: cloud takes precedence, but keep local-only conversations
-      const mergedConversations = [...(cloudConversations || [])];
-      const cloudIds = new Set((cloudConversations || []).map(c => c.id));
+      // Merge: keep the more recent version of each conversation
+      const cloudMap = new Map((cloudConversations || []).map(c => [c.id, c]));
+      const localMap = new Map(localConversations.map(c => [c.id, c]));
+      const allIds = new Set([...cloudMap.keys(), ...localMap.keys()]);
 
-      for (const local of localConversations) {
-        if (!cloudIds.has(local.id)) {
-          console.log('syncFromCloud: Adding local-only conversation:', local.id);
-          mergedConversations.push(local);
+      const mergedConversations = [];
+      for (const id of allIds) {
+        const cloudConv = cloudMap.get(id);
+        const localConv = localMap.get(id);
+
+        if (cloudConv && localConv) {
+          // Both exist - keep the more recent one
+          const cloudDate = new Date(cloudConv.updatedAt || 0);
+          const localDate = new Date(localConv.updatedAt || 0);
+          if (localDate >= cloudDate) {
+            console.log('syncFromCloud: Keeping local version (newer):', id);
+            mergedConversations.push(localConv);
+          } else {
+            console.log('syncFromCloud: Keeping cloud version (newer):', id);
+            mergedConversations.push(cloudConv);
+          }
+        } else if (cloudConv) {
+          mergedConversations.push(cloudConv);
+        } else if (localConv) {
+          console.log('syncFromCloud: Adding local-only conversation:', id);
+          mergedConversations.push(localConv);
         }
       }
 

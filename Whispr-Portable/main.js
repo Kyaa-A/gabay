@@ -177,7 +177,7 @@ function createWindow() {
 
 
   // Load the app with graceful fallback
-  const devUrl = "http://localhost:3000";
+  const devUrl = "http://localhost:3001";
   // In production, use app.getAppPath() which points to resources/app in packaged build
   const prodPath = app.isPackaged
     ? path.join(app.getAppPath(), "build", "index.html")
@@ -326,15 +326,31 @@ function createTray() {
 }
 
 function registerGlobalShortcuts() {
-  // Register Ctrl+L to toggle window
-  const ret = globalShortcut.register("CommandOrControl+L", () => {
-    toggleWindow();
-  });
+  // Try multiple shortcuts for toggle window
+  const shortcuts = [
+    "CommandOrControl+L",
+    "CommandOrControl+Shift+G",  // Fallback 1
+    "Alt+Space",                  // Fallback 2
+  ];
 
-  if (!ret) {
-    console.log("Global shortcut registration failed");
-  } else {
-    console.log("Global shortcut Ctrl+L registered successfully");
+  let registered = false;
+  for (const shortcut of shortcuts) {
+    try {
+      const ret = globalShortcut.register(shortcut, () => {
+        toggleWindow();
+      });
+      if (ret) {
+        console.log(`Global shortcut ${shortcut} registered successfully`);
+        registered = true;
+        break;
+      }
+    } catch (e) {
+      console.log(`Failed to register ${shortcut}:`, e.message);
+    }
+  }
+
+  if (!registered) {
+    console.log("All global shortcuts failed - window can still be opened from system tray");
   }
 
   // Register Ctrl+Shift+I to open DevTools (for debugging)
@@ -347,50 +363,64 @@ function registerGlobalShortcuts() {
   console.log("DevTools shortcut Ctrl+Shift+I registered");
 }
 
-// AI Integration
-const MODEL_PREFERENCE = [
-  "gemini-2.0-flash",
-  "gemini-2.5-pro",
-  "gemini-1.5-flash"
-];
+// AI Integration - Multi-Provider Support
+const { createProvider, getProviders, PROVIDERS } = require('./providers/ProviderFactory');
 
-let genAIClient = null;
-let currentModelName = MODEL_PREFERENCE[0];
+let currentProvider = null;
+let currentProviderId = null;
+
+// Migrate old settings format to new format
+function migrateSettings(settings) {
+  if (settings.apiKey && !settings.apiKeys) {
+    // Old format: { apiKey: "..." }
+    // New format: { apiKeys: { gemini: "..." }, activeProvider: "gemini" }
+    settings.apiKeys = { gemini: settings.apiKey };
+    settings.activeProvider = 'gemini';
+    settings.selectedModel = PROVIDERS.gemini.defaultModel;
+    delete settings.apiKey;
+    saveSettings(settings);
+    console.log("Migrated settings to new multi-provider format");
+  }
+  return settings;
+}
 
 async function initializeAI() {
   try {
-    console.log("Loading Google Generative AI library...");
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
+    let settings = loadSettings();
+    settings = migrateSettings(settings);
 
-    // Store API key from environment variable
-    const API_KEY = process.env.GOOGLE_API_KEY;
+    const providerId = settings.activeProvider || 'gemini';
+    const apiKeys = settings.apiKeys || {};
 
-    if (!API_KEY) {
-      console.error("GOOGLE_API_KEY environment variable not set");
+    // Get API key for selected provider - check settings first, then environment
+    const providerConfig = PROVIDERS[providerId];
+    let apiKey = apiKeys[providerId];
+
+    if (!apiKey && providerConfig) {
+      apiKey = process.env[providerConfig.apiKeyName];
+    }
+
+    if (!apiKey) {
+      console.error(`No API key for provider: ${providerId}`);
       return null;
     }
 
-    if (!API_KEY) {
-      console.error("No API key provided");
-      return null;
+    // Ensure apiKey is a string
+    apiKey = String(apiKey);
+
+    console.log(`Initializing AI with provider: ${providerId}`);
+    console.log("API key starts with:", apiKey.length > 8 ? apiKey.substring(0, 8) + "..." : "***");
+
+    currentProvider = createProvider(providerId, apiKey);
+    currentProviderId = providerId;
+
+    // Set model if specified in settings
+    if (settings.selectedModel) {
+      currentProvider.setModel(settings.selectedModel);
     }
 
-    console.log("API key found, initializing Google AI client...");
-    console.log("API key starts with:", API_KEY.substring(0, 10) + "...");
-    console.log("Running in production:", !isDev);
-    console.log("App path:", app.getAppPath());
-    console.log("Resources path:", process.resourcesPath || "not available");
-
-    // Initialize the Google AI client
-    genAIClient = new GoogleGenerativeAI(API_KEY);
-
-    console.log("Getting Gemini model...");
-    // Get the Gemini model (using the preferred model name)
-    currentModelName = MODEL_PREFERENCE[0];
-    const model = genAIClient.getGenerativeModel({ model: currentModelName });
-
-    console.log("AI model initialized successfully");
-    return model;
+    console.log(`AI initialized with provider: ${providerId}, model: ${currentProvider.getModel()}`);
+    return currentProvider;
   } catch (error) {
     console.error("Failed to initialize AI:", {
       message: error.message,
@@ -400,8 +430,6 @@ async function initializeAI() {
     return null;
   }
 }
-
-let aiModel = null;
 // In-memory lightweight conversation history (last 8 turns)
 let conversationHistory = [];
 const MAX_TURNS_TO_KEEP = 8;
@@ -409,87 +437,54 @@ const MAX_TURNS_TO_KEEP = 8;
 // IPC handlers
 function setupIPC() {
   // Handle AI message requests
-  ipcMain.handle("ai-message", async (event, message) => {
+  ipcMain.handle("ai-message", async (event, data) => {
+    // Support both old format (string) and new format (object with message and systemPrompt)
+    let message = '';
+    let customSystemPrompt = null;
+
+    if (typeof data === 'string') {
+      message = data;
+    } else if (data && typeof data === 'object') {
+      message = String(data.message || '');
+      customSystemPrompt = data.systemPrompt || null;
+    }
+
+    console.log("ai-message received:", { dataType: typeof data, messageLength: message.length });
+
     try {
-      if (!aiModel) {
-        console.log("Initializing AI model...");
-        aiModel = await initializeAI();
+      if (!currentProvider) {
+        console.log("Initializing AI provider...");
+        currentProvider = await initializeAI();
       }
 
-      if (!aiModel) {
-        console.error("AI model initialization failed");
-        throw new Error("AI model not available");
+      if (!currentProvider) {
+        console.error("AI provider initialization failed - no provider created");
+        throw new Error("AI provider not available - please set an API key in Settings");
       }
 
-      console.log("Sending message to AI:", message.substring(0, 50) + "...");
+      console.log("Sending message to AI, length:", message.length);
 
-      // Build short conversation memory (last few exchanges)
-      const historyText = conversationHistory
-        .slice(-MAX_TURNS_TO_KEEP)
-        .map((turn, index) => `${index + 1}. User: ${turn.user}\n   Assistant: ${turn.assistant}`)
-        .join("\n");
+      // Set custom system prompt if provided
+      if (customSystemPrompt && currentProvider.setCustomSystemPrompt) {
+        currentProvider.setCustomSystemPrompt(customSystemPrompt);
+      }
 
-      // AI system prompt - concise and helpful
-      const systemPrompt = `You are Gabay, a smart and helpful AI assistant. Be concise, clear, and conversational.
-
-## Response Guidelines
-
-**Be Brief**: Give short, focused answers. Skip lengthy explanations unless asked. Get to the point quickly.
-
-**Be Conversational**: Talk naturally like a helpful friend, not a textbook. Use simple language.
-
-**Be Smart**: Think through questions carefully, but share conclusions directly without showing all your work.
-
-**Ask First**: For complex requests (like building a resume, writing code, planning something), ask 1-2 clarifying questions BEFORE diving into a long response. Don't assume - confirm what the user needs.
-
-**Format Wisely**:
-- Use bullet points sparingly, only when listing 3+ items
-- Avoid walls of text - keep paragraphs short (2-3 sentences max)
-- Don't use headers/sections for simple answers
-
-## Behavioral Rules
-
-- When asked who made/created you: "I was created by Asnari Pacalna"
-- Never repeat your introduction
-- Be direct and confident
-- If unsure, admit it briefly and suggest how to find the answer`;
-
-      const prompt = `${systemPrompt}
-
----
-CONVERSATION HISTORY (last ${Math.min(conversationHistory.length, MAX_TURNS_TO_KEEP)} exchanges):
-${historyText || "(This is the start of the conversation)"}
-
----
-USER: ${message}
-
-Respond thoughtfully:`;
-
-      // Retry for transient errors (503/overloaded) with exponential backoff and model fallback
+      // Retry for transient errors (503/overloaded) with exponential backoff
       async function generateWithRetry(maxRetries = 3) {
         let attempt = 0;
         let lastError = null;
-        let modelIndex = MODEL_PREFERENCE.indexOf(currentModelName);
+
         while (attempt <= maxRetries) {
           try {
-            const result = await aiModel.generateContent(prompt);
-            return await result.response;
+            return await currentProvider.generateContent(message, conversationHistory);
           } catch (err) {
             lastError = err;
             const msg = String(err?.message || "");
-            if (msg.includes("503") || msg.toLowerCase().includes("overloaded") || msg.includes("unavailable")) {
-              // Try switching to a fallback model first
-              if (genAIClient && modelIndex + 1 < MODEL_PREFERENCE.length) {
-                modelIndex += 1;
-                currentModelName = MODEL_PREFERENCE[modelIndex];
-                console.log(`Switching to fallback model: ${currentModelName}`);
-                aiModel = genAIClient.getGenerativeModel({ model: currentModelName });
-              } else {
-                const delayMs = Math.min(1500 * Math.pow(2, attempt), 6000);
-                console.log(`AI overloaded, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-                await new Promise(r => setTimeout(r, delayMs));
-                attempt += 1;
-              }
+            if (msg.includes("503") || msg.toLowerCase().includes("overloaded") || msg.includes("unavailable") || msg.includes("rate_limit")) {
+              const delayMs = Math.min(1500 * Math.pow(2, attempt), 6000);
+              console.log(`AI overloaded, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+              await new Promise(r => setTimeout(r, delayMs));
+              attempt += 1;
               continue;
             }
             throw err;
@@ -498,20 +493,7 @@ Respond thoughtfully:`;
         throw lastError;
       }
 
-      const response = await generateWithRetry(3);
-      let text = response.text();
-
-      // Post-process to strip repetitive intros after the first turn
-      if (conversationHistory.length > 0) {
-        const lines = text.split(/\r?\n/);
-        const filtered = lines.filter((line, idx) => {
-          if (idx === 0 && /\b(i\'m|i am)\s+(whispr|gabay)\b/i.test(line)) return false;
-          if (/created by\s+asnari\s+pacalna/i.test(line)) return false;
-          return true;
-        });
-        text = filtered.join("\n").trim();
-      }
-
+      const text = await generateWithRetry(3);
       console.log("AI response received successfully");
 
       // Update conversation history
@@ -528,15 +510,15 @@ Respond thoughtfully:`;
         name: error.name,
         code: error.code
       });
-      
+
       // Return more specific error messages
-      if (error.message.includes("API key")) {
-        throw new Error("Invalid API key - please check your Google AI API key");
-      } else if (error.message.includes("quota")) {
-        throw new Error("API quota exceeded - please check your Google Cloud billing");
+      if (error.message.includes("API key") || error.message.includes("api_key") || error.message.includes("authentication")) {
+        throw new Error("Invalid API key - please check your API key in Settings");
+      } else if (error.message.includes("quota") || error.message.includes("rate_limit")) {
+        throw new Error("API quota/rate limit exceeded - please try again later");
       } else if (error.message.includes("permission")) {
-        throw new Error("API permission denied - please enable Gemini API in Google Cloud Console");
-      } else if (error.code === "ENOTFOUND" || error.message.includes("network")) {
+        throw new Error("API permission denied - please check your API configuration");
+      } else if (error.code === "ENOTFOUND" || error.message.includes("network") || error.message.includes("fetch")) {
         throw new Error("Network error - please check your internet connection");
       } else {
         throw new Error(`AI service error: ${error.message}`);
@@ -545,113 +527,51 @@ Respond thoughtfully:`;
   });
 
   // Handle multimodal AI message requests (with file attachments)
-  ipcMain.handle("ai-message-multimodal", async (event, { message, attachments }) => {
+  ipcMain.handle("ai-message-multimodal", async (event, data) => {
+    // Safely extract parameters
+    const message = String(data?.message || '');
+    const attachments = data?.attachments || [];
+    const systemPrompt = data?.systemPrompt || null;
+
     try {
-      if (!aiModel) {
-        console.log("Initializing AI model for multimodal...");
-        aiModel = await initializeAI();
+      if (!currentProvider) {
+        console.log("Initializing AI provider for multimodal...");
+        currentProvider = await initializeAI();
       }
 
-      if (!aiModel) {
-        console.error("AI model initialization failed");
-        throw new Error("AI model not available");
+      if (!currentProvider) {
+        console.error("AI provider initialization failed");
+        throw new Error("AI provider not available - please set an API key in Settings");
       }
 
-      console.log(`Sending multimodal message with ${attachments?.length || 0} attachments`);
+      console.log(`Sending multimodal message with ${attachments.length} attachments`);
 
-      // Build the content parts for multimodal request
-      const contentParts = [];
-
-      // Add file attachments as inline data
-      if (attachments && attachments.length > 0) {
-        for (const attachment of attachments) {
-          contentParts.push({
-            inlineData: {
-              data: attachment.data,
-              mimeType: attachment.type,
-            },
-          });
-          console.log(`Added attachment: ${attachment.name} (${attachment.type})`);
-        }
+      // Set custom system prompt if provided
+      if (systemPrompt && currentProvider.setCustomSystemPrompt) {
+        currentProvider.setCustomSystemPrompt(systemPrompt);
       }
 
-      // Build conversation context
-      const historyText = conversationHistory
-        .slice(-MAX_TURNS_TO_KEEP)
-        .map((turn, index) => `${index + 1}. User: ${turn.user}\n   Assistant: ${turn.assistant}`)
-        .join("\n");
-
-      // AI system prompt - concise and helpful (multimodal version)
-      const systemPrompt = `You are Gabay, a smart and helpful AI assistant with vision capabilities. Be concise, clear, and conversational.
-
-## Response Guidelines
-
-**Be Brief**: Give short, focused answers. Skip lengthy explanations unless asked.
-
-**Be Conversational**: Talk naturally like a helpful friend. Use simple language.
-
-**Ask First**: For complex requests, ask 1-2 clarifying questions BEFORE diving into a long response.
-
-**Format Wisely**:
-- Use bullet points sparingly
-- Keep paragraphs short (2-3 sentences max)
-- Don't over-format simple answers
-
-## Vision & Document Analysis
-
-When analyzing images/documents:
-- Describe what you see concisely
-- Focus on what's relevant to the user's question
-- For code: identify issues briefly, suggest fixes
-- For documents: extract key info, don't summarize everything
-
-## Behavioral Rules
-
-- When asked who made/created you: "I was created by Asnari Pacalna"
-- Never repeat your introduction
-- Be direct and confident`;
-
-      // Build the text prompt
-      const textPrompt = `${systemPrompt}
-
----
-CONVERSATION HISTORY (last ${Math.min(conversationHistory.length, MAX_TURNS_TO_KEEP)} exchanges):
-${historyText || "(This is the start of the conversation)"}
-
----
-USER: ${message || "Please analyze the attached file(s) thoroughly."}
-
-Analyze the provided content and respond thoughtfully:`;
-
-      // Add text prompt to content parts
-      contentParts.push({ text: textPrompt });
+      // Check if provider supports multimodal
+      if (!currentProvider.supportsMultimodal()) {
+        console.log("Provider doesn't support multimodal, falling back to text-only");
+      }
 
       // Retry for transient errors with exponential backoff
       async function generateMultimodalWithRetry(maxRetries = 3) {
         let attempt = 0;
         let lastError = null;
-        let modelIndex = MODEL_PREFERENCE.indexOf(currentModelName);
 
         while (attempt <= maxRetries) {
           try {
-            const result = await aiModel.generateContent(contentParts);
-            return await result.response;
+            return await currentProvider.generateMultimodalContent(message, attachments, conversationHistory);
           } catch (err) {
             lastError = err;
             const msg = String(err?.message || "");
-            if (msg.includes("503") || msg.toLowerCase().includes("overloaded") || msg.includes("unavailable")) {
-              // Try switching to a fallback model first
-              if (genAIClient && modelIndex + 1 < MODEL_PREFERENCE.length) {
-                modelIndex += 1;
-                currentModelName = MODEL_PREFERENCE[modelIndex];
-                console.log(`Switching to fallback model: ${currentModelName}`);
-                aiModel = genAIClient.getGenerativeModel({ model: currentModelName });
-              } else {
-                const delayMs = Math.min(1500 * Math.pow(2, attempt), 6000);
-                console.log(`AI overloaded, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-                await new Promise(r => setTimeout(r, delayMs));
-                attempt += 1;
-              }
+            if (msg.includes("503") || msg.toLowerCase().includes("overloaded") || msg.includes("unavailable") || msg.includes("rate_limit")) {
+              const delayMs = Math.min(1500 * Math.pow(2, attempt), 6000);
+              console.log(`AI overloaded, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+              await new Promise(r => setTimeout(r, delayMs));
+              attempt += 1;
               continue;
             }
             throw err;
@@ -660,20 +580,7 @@ Analyze the provided content and respond thoughtfully:`;
         throw lastError;
       }
 
-      const response = await generateMultimodalWithRetry(3);
-      let text = response.text();
-
-      // Post-process to strip repetitive intros after the first turn
-      if (conversationHistory.length > 0) {
-        const lines = text.split(/\r?\n/);
-        const filtered = lines.filter((line, idx) => {
-          if (idx === 0 && /\b(i\'m|i am)\s+(whispr|gabay)\b/i.test(line)) return false;
-          if (/created by\s+asnari\s+pacalna/i.test(line)) return false;
-          return true;
-        });
-        text = filtered.join("\n").trim();
-      }
-
+      const text = await generateMultimodalWithRetry(3);
       console.log("Multimodal AI response received successfully");
 
       // Update conversation history (note: we store text description of attachments)
@@ -698,13 +605,13 @@ Analyze the provided content and respond thoughtfully:`;
       });
 
       // Return more specific error messages
-      if (error.message.includes("API key")) {
-        throw new Error("Invalid API key - please check your Google AI API key");
-      } else if (error.message.includes("quota")) {
-        throw new Error("API quota exceeded - please check your Google Cloud billing");
+      if (error.message.includes("API key") || error.message.includes("api_key") || error.message.includes("authentication")) {
+        throw new Error("Invalid API key - please check your API key in Settings");
+      } else if (error.message.includes("quota") || error.message.includes("rate_limit")) {
+        throw new Error("API quota/rate limit exceeded - please try again later");
       } else if (error.message.includes("permission")) {
-        throw new Error("API permission denied - please enable Gemini API in Google Cloud Console");
-      } else if (error.code === "ENOTFOUND" || error.message.includes("network")) {
+        throw new Error("API permission denied - please check your API configuration");
+      } else if (error.code === "ENOTFOUND" || error.message.includes("network") || error.message.includes("fetch")) {
         throw new Error("Network error - please check your internet connection");
       } else if (error.message.includes("INVALID_ARGUMENT")) {
         throw new Error("File format not supported by AI - try a different file type");
@@ -733,34 +640,156 @@ Analyze the provided content and respond thoughtfully:`;
     return true;
   });
 
-  // Handle API key management
+  // Handle API key management (legacy - for backwards compatibility)
   ipcMain.handle("get-api-key", () => {
-    const settings = loadSettings();
-    // Return masked key for display (or empty if none)
-    if (settings.apiKey) {
-      return settings.apiKey;
+    let settings = loadSettings();
+    settings = migrateSettings(settings);
+    // Return the active provider's API key
+    const providerId = settings.activeProvider || 'gemini';
+    if (settings.apiKeys && settings.apiKeys[providerId]) {
+      return settings.apiKeys[providerId];
     }
-    return process.env.GOOGLE_API_KEY || "";
+    const providerConfig = PROVIDERS[providerId];
+    return providerConfig ? (process.env[providerConfig.apiKeyName] || "") : "";
   });
 
   ipcMain.handle("set-api-key", async (event, apiKey) => {
     try {
-      const settings = loadSettings();
-      settings.apiKey = apiKey;
+      let settings = loadSettings();
+      settings = migrateSettings(settings);
+      const providerId = settings.activeProvider || 'gemini';
+
+      if (!settings.apiKeys) settings.apiKeys = {};
+      settings.apiKeys[providerId] = apiKey;
       const saved = saveSettings(settings);
 
       if (saved) {
-        // Update the current process env as well
-        process.env.GOOGLE_API_KEY = apiKey;
-        // Reset AI model so it reinitializes with new key
-        aiModel = null;
-        console.log("API key saved and applied");
+        // Reset provider so it reinitializes with new key
+        currentProvider = null;
+        console.log(`API key saved for provider: ${providerId}`);
         return true;
       }
       return false;
     } catch (error) {
       console.error("Failed to save API key:", error);
       return false;
+    }
+  });
+
+  // Get available providers
+  ipcMain.handle("get-providers", () => {
+    return PROVIDERS;
+  });
+
+  // Get current provider settings
+  ipcMain.handle("get-provider-settings", () => {
+    let settings = loadSettings();
+    settings = migrateSettings(settings);
+
+    // Mask API keys for display
+    const maskedKeys = {};
+    if (settings.apiKeys) {
+      for (const [key, value] of Object.entries(settings.apiKeys)) {
+        const strValue = String(value || '');
+        if (strValue && strValue.length > 12) {
+          maskedKeys[key] = strValue.substring(0, 8) + "..." + strValue.slice(-4);
+        } else if (strValue) {
+          maskedKeys[key] = "****";
+        } else {
+          maskedKeys[key] = "";
+        }
+      }
+    }
+
+    return {
+      activeProvider: settings.activeProvider || 'gemini',
+      selectedModel: settings.selectedModel || PROVIDERS.gemini.defaultModel,
+      apiKeys: maskedKeys,
+      hasApiKeys: settings.apiKeys || {},
+    };
+  });
+
+  // Set active provider
+  ipcMain.handle("set-provider", async (event, providerId) => {
+    try {
+      if (!PROVIDERS[providerId]) {
+        throw new Error(`Unknown provider: ${providerId}`);
+      }
+
+      let settings = loadSettings();
+      settings = migrateSettings(settings);
+      settings.activeProvider = providerId;
+      settings.selectedModel = PROVIDERS[providerId].defaultModel;
+      saveSettings(settings);
+
+      // Reset provider so it reinitializes
+      currentProvider = null;
+      currentProviderId = null;
+      console.log(`Switched to provider: ${providerId}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to set provider:", error);
+      return false;
+    }
+  });
+
+  // Set model for current provider
+  ipcMain.handle("set-model", async (event, modelName) => {
+    try {
+      let settings = loadSettings();
+      settings = migrateSettings(settings);
+      settings.selectedModel = modelName;
+      saveSettings(settings);
+
+      if (currentProvider) {
+        currentProvider.setModel(modelName);
+      }
+      console.log(`Model set to: ${modelName}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to set model:", error);
+      return false;
+    }
+  });
+
+  // Set API key for a specific provider
+  ipcMain.handle("set-provider-api-key", async (event, { providerId, apiKey }) => {
+    try {
+      if (!PROVIDERS[providerId]) {
+        throw new Error(`Unknown provider: ${providerId}`);
+      }
+
+      let settings = loadSettings();
+      settings = migrateSettings(settings);
+      if (!settings.apiKeys) settings.apiKeys = {};
+      settings.apiKeys[providerId] = apiKey;
+      saveSettings(settings);
+
+      // If this is the active provider, reset it
+      if (providerId === settings.activeProvider) {
+        currentProvider = null;
+      }
+      console.log(`API key saved for provider: ${providerId}`);
+      return true;
+    } catch (error) {
+      console.error("Failed to save provider API key:", error);
+      return false;
+    }
+  });
+
+  // Get API key for a specific provider (unmasked - for settings modal)
+  ipcMain.handle("get-provider-api-key", async (event, providerId) => {
+    try {
+      let settings = loadSettings();
+      settings = migrateSettings(settings);
+      if (settings.apiKeys && settings.apiKeys[providerId]) {
+        return settings.apiKeys[providerId];
+      }
+      const providerConfig = PROVIDERS[providerId];
+      return providerConfig ? (process.env[providerConfig.apiKeyName] || "") : "";
+    } catch (error) {
+      console.error("Failed to get provider API key:", error);
+      return "";
     }
   });
 

@@ -55,7 +55,7 @@ export const setActiveConversationId = (id) => {
 };
 
 // Create new conversation
-export const createConversation = (title = 'New Chat') => {
+export const createConversation = (title = 'New Chat', systemPrompt = null) => {
   const conversations = getConversations();
   const newConversation = {
     id: generateId(),
@@ -70,6 +70,8 @@ export const createConversation = (title = 'New Chat') => {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    pinned: false,
+    systemPrompt: systemPrompt, // Custom AI personality for this conversation
   };
 
   conversations.unshift(newConversation);
@@ -77,6 +79,34 @@ export const createConversation = (title = 'New Chat') => {
   setActiveConversationId(newConversation.id);
 
   return newConversation;
+};
+
+// Toggle pin status
+export const togglePinConversation = (id) => {
+  const conversations = getConversations();
+  const index = conversations.findIndex(c => c.id === id);
+
+  if (index !== -1) {
+    conversations[index].pinned = !conversations[index].pinned;
+    // Update updatedAt so local changes are recognized as newer during cloud sync
+    conversations[index].updatedAt = new Date().toISOString();
+    saveConversations(conversations);
+    return conversations[index];
+  }
+  return null;
+};
+
+// Get conversations sorted (pinned first, then by date)
+export const getSortedConversations = () => {
+  const conversations = getConversations();
+  // Create a new array to avoid mutating the original
+  return [...conversations].sort((a, b) => {
+    // Pinned items first
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    // Then by date
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
 };
 
 // Update conversation
@@ -185,4 +215,33 @@ export const searchConversations = (query) => {
       msg.text.toLowerCase().includes(lowerQuery)
     );
   });
+};
+
+// Clean up duplicate empty "New Chat" conversations
+// Keep only the most recent one if there are multiple empty chats
+export const cleanupDuplicateChats = () => {
+  const conversations = getConversations();
+
+  // Find empty "New Chat" conversations (only have the initial bot message)
+  const emptyChats = conversations.filter(c =>
+    c.title === 'New Chat' &&
+    c.messages.length <= 1
+  );
+
+  // If more than one empty chat, keep only the most recent
+  if (emptyChats.length > 1) {
+    const sortedEmpty = emptyChats.sort((a, b) =>
+      new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
+
+    // IDs to remove (all but the most recent)
+    const idsToRemove = new Set(sortedEmpty.slice(1).map(c => c.id));
+
+    const cleaned = conversations.filter(c => !idsToRemove.has(c.id));
+    saveConversations(cleaned);
+    console.log(`Cleaned up ${idsToRemove.size} duplicate empty chats`);
+    return cleaned;
+  }
+
+  return conversations;
 };

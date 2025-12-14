@@ -5,8 +5,8 @@
   "main": "Whispr-Portable/main.js",
   "homepage": "./",
   "scripts": {
-    "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-portable\"",
-    "react-start": "react-scripts start",
+    "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3001 && npm run electron-portable\"",
+    "react-start": "set PORT=3001 && react-scripts start",
     "react-build": "react-scripts build",
     "electron-build": "npm run react-build && set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win portable",
     "electron-dev": "ELECTRON_IS_DEV=true electron .",

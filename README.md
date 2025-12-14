@@ -2,7 +2,9 @@
 
 A personal AI chatbot for Windows. Get instant answers, boost productivity, and ship code faster — all from a beautiful always-on desktop widget.
 
-![Gabay Screenshot](https://github.com/user-attachments/assets/8bf215f2-57fc-4e49-8704-5c5f3353ec2a)
+![Gabay Landing](src/Image/landing.webp)
+
+[Try Gabay Online](https://gabay-chatbot.vercel.app/)
 
 ## Features
 
